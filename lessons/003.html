@@ -1,0 +1,120 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第3講｜Web・AP・DBの3層アーキテクチャ</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.85}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="002.html">前講</a> ｜ 第3講 / 全224講 ｜ <a href="004.html">次講（未公開）</a></nav><article><h1>第3講 Web・AP・DBの3層アーキテクチャ</h1>
+
+<h2>到達目標</h2>
+<p>Web・AP・DBの3層それぞれの役割、HTTP要求からSQL更新までの正常な流れ、障害時のエラーの現れ方、ログ・設定を用いた切り分けを説明できる。層の分離と物理的な冗長化の違いを理解し、構成を選ぶ根拠を述べられる。</p>
+
+<h2>資料・重要度・学習上の前提</h2>
+<p>2026-11-21に運用マスターv1.2、正式カリキュラム、進捗をGitHubから確認。以下のコマンド・設定・ログはNginx、FastAPI、PostgreSQLを想定した架空の学習環境例であり、実行していない。公式製品マニュアルの該当箇所は本講では未照合。A必須：役割分担・正常処理・障害切り分け。B理解補助：設定・ログの読み方。C発展：分離・冗長化・タイムアウトの設計。</p>
+
+<h2>1. なぜ3層に分けるのか</h2>
+<p>単一プログラムが画面表示、注文計算、データ保存をすべて担うと、変更の影響が広がりやすく、負荷の集中箇所を特定しづらい。3層構成は責務を「HTTPの入口」「業務処理」「データ管理」に分ける設計である。層を分けることは、サーバを必ず3台にすることではない。1台のホストに3サービスを置くことも、Webを2台・APを3台・DBを冗長構成にすることもある。</p>
+
+<h2>2. 3層の構成と通信</h2>
+<p><figure><img src="../assets/lesson003/architecture.svg" alt="Web・AP・DBの3層論理構成"><figcaption>Web・AP・DBの3層論理構成</figcaption></figure></p>
+<p>図の青矢印は要求方向、灰色の矢印は応答方向。例では利用者のブラウザからWeb層のNginxへHTTP(S)要求が入り、Web層がAP層のFastAPIへ転送する。AP層はPostgreSQLへSQLを送り、DBは検索結果や更新結果を返す。ブラウザからDBへの直接接続は想定しない。Webは公開入口、APとDBは内部ネットワークに置くのが一般的な選択肢である。</p>
+
+<table><tr><th>層</th><th>主な責務</th><th>入力・出力</th><th>典型的な障害の兆候</th></tr>
+
+<tr><td>Web</td><td>HTTPS受付、静的配信、リバースプロキシ</td><td>HTTP要求／HTTP応答</td><td>接続不可、502、504</td></tr>
+<tr><td>AP</td><td>認証・検証、業務ルール、DB呼出</td><td>HTTP要求／SQL・HTTP応答</td><td>500、処理遅延、接続枯渇</td></tr>
+<tr><td>DB</td><td>SQL実行、トランザクション、永続化</td><td>SQL／行・更新結果</td><td>接続拒否、ロック待ち、書込失敗</td></tr>
+</table>
+<p>Web層は業務データの正しさを保証せず、DB層は利用者向けの画面を組み立てる役割ではない。実際には認証基盤やキャッシュ、メッセージキューが加わることもあり、3層は全システムを網羅する厳密な台数分類ではない。</p>
+
+<h2>3. 正常処理をシーケンスで追う</h2>
+<p><figure><img src="../assets/lesson003/sequence.svg" alt="注文登録のシーケンス"><figcaption>注文登録のシーケンス</figcaption></figure></p>
+<p>注文登録を例にする。①ブラウザがPOST /api/ordersをWebへ送る。②Webは要求をAPへ転送する。③APは入力と権限を検証する。④APはDBにトランザクションを開始し、在庫確認と注文の登録を依頼する。⑤DBは整合性を確認してCOMMITし、結果を返す。⑥APは結果に応じたHTTP応答をWeb経由で返す。</p>
+<p>「COMMIT」とはトランザクション内の変更を確定する操作である。失敗時にはROLLBACKして中途半端な更新を残さない設計が必要。ただし業務要件や実装によって複数のトランザクションに分かれる場合もある。</p>
+<p>ブラウザで画面が開くことはWebの静的配信が動くことを示すにすぎず、APの注文処理やDBの書き込み成功までは保証しない。</p>
+
+<h2>4. 設定から通信の向きを読む</h2>
+<p>以下は説明用の簡略化したNginx設定例。実環境ではTLS終端、ヘッダー、接続制限、認証、ログ、タイムアウト等を別途設計する。</p>
+<pre><code>
+server {
+
+    listen 8080;
+
+    location /api/ {
+
+        proxy_pass http://ap:8000;
+
+    }
+
+}
+
+</code></pre>
+<p><code>listen 8080</code>はWebが8080番ポートで受け付ける設定、<code>proxy_pass</code>は/api/への要求をAPの8000番へ転送する指定である。名前<code>ap</code>が解決できること、APが8000番で待ち受けること、経路のFWが許可することが前提になる。設定に書かれた転送先が間違っていれば、APが正常でも転送できない。</p>
+<p>AP側のDB接続先の概念例：</p>
+<pre><code>
+DB_HOST=db
+
+DB_PORT=5432
+
+DB_NAME=orders
+
+</code></pre>
+<p>これは環境変数の例であり、パスワードは掲載しない。APがDBへ接続するには名前解決、ポート、認証情報、DBの待受、接続上限などが整合している必要がある。</p>
+
+<h2>5. 正常ログと障害ログを読む</h2>
+<p>次はすべて架空のログである。各層に共通のrequest_idを付けると同一要求を追いやすい。</p>
+<pre><code>
+10:00:00 web request_id=R100 POST /api/orders status=201 upstream=ap:8000
+
+10:00:00 ap  request_id=R100 validated=true db_commit=ok duration_ms=42
+
+10:00:00 db  tx=TX50 COMMIT result=success
+
+</code></pre>
+<p>Webの201はHTTPとして注文作成成功を表す例、APのdb_commit=okはDB更新が確定したことを示す架空のアプリログである。実際のログ項目は設定や実装に依存する。</p>
+<pre><code>
+10:15:00 web request_id=R101 POST /api/orders status=502 upstream=ap:8000
+
+10:15:00 web error connect() failed (111: Connection refused) while connecting to upstream
+
+</code></pre>
+<p>この例ではWebからAPへのTCP接続が拒否されている。APプロセス停止、待受ポートの不一致、接続先の誤りなどを調べる。502だけで原因をAP停止と断定してはいけない。</p>
+<pre><code>
+10:20:00 web request_id=R102 POST /api/orders status=504 upstream=ap:8000
+
+10:20:00 ap  request_id=R102 db_wait_ms=30000 result=timeout
+
+</code></pre>
+<p>この例はAPがDB待ちで遅延したケース。504はWeb等のゲートウェイが上流から時間内に応答を得られなかったことを示すが、どの層が遅いかは関連ログを照合する必要がある。APの遅延にはDBロック待ち以外にも外部API待ちやCPU高負荷があり得る。</p>
+
+<h2>6. 状態・通信・業務を段階的に確認する</h2>
+<p>Linuxの検証環境での読み取り中心の確認例：</p>
+<pre><code>
+ss -lnt
+
+curl -i --max-time 5 http://127.0.0.1:8080/api/health
+
+docker compose ps
+
+docker compose logs --tail=50 web ap db
+
+</code></pre>
+<p><code>ss</code>はポートの待受、<code>curl</code>はWeb入口から見たHTTP応答、<code>docker compose ps</code>はコンテナの状態、<code>logs</code>は各サービスの直近ログを見る。Docker Composeを使用しない環境では最後の2コマンドは使えない。コマンドは実行していない。</p>
+<p>確認は「プロセス稼働→ポート待受→ネットワーク到達→HTTP応答→DB接続→業務操作」の順に深める。各段階が成功しても次段階の成功は保証しない。例えば/healthが200でも、注文登録の書き込みトランザクションは失敗することがある。</p>
+
+<h2>7. 障害シナリオと切り分け</h2>
+<p><strong>Web停止</strong>：利用者は入口に接続できない。DNSやFWも原因候補なので、Webプロセス・ポート・入口の経路を確認する。</p>
+<p><strong>AP停止</strong>：Webの静的画面は開くがAPIが502などになる場合がある。Webの転送ログとAP待受、APの起動ログを確認する。</p>
+<p><strong>DB停止</strong>：APがDBへ接続できず、業務APIが500や503等を返す場合がある。APログとDBの起動・接続ログを確認する。HTTPコードはアプリのエラー処理次第で異なる。</p>
+<p><strong>DBロック待ち</strong>：DBは起動していても特定の更新が遅延する。処理時間、待機イベント、該当SQL、トランザクションの競合を調べる。安易なDB再起動は他の正常処理も停止させる。</p>
+<p><strong>ストレージ容量不足</strong>：DBが参照可能でも書き込みに失敗することがある。DBログ、ファイルシステム容量、書き込みエラーを照合する。DBファイルの削除は行わず承認済み手順で対応する。</p>
+<p>障害の切り分けでは「最後に正常だった境界」と「最初に異常になった境界」を探す。Webログに転送先への接続拒否があればWeb→AP境界を、APログにDB接続エラーがあればAP→DB境界を優先して調べる。</p>
+
+<h2>8. 設計判断：分離、冗長化、タイムアウト</h2>
+<p><strong>同一ホスト集約</strong>は安価で構築が簡単だが、ホスト故障で3層とも停止し得る。<strong>層ごとのホスト分離</strong>は障害範囲を小さくしやすい一方、ネットワーク設定や運用対象が増える。<strong>複数台冗長化</strong>は単一ノード故障への耐性を高めるが、共通ストレージやDB、認証、LBが単一障害点になっていないか確認が必要。</p>
+<p>Webの上流タイムアウトを短くすると利用者への応答は早く失敗するが、正常でも長い業務処理を途中で打ち切る可能性がある。長くすると処理完了を待てるが、障害時に待ち時間と接続資源の占有が増える。AP・DBのタイムアウトやリトライも整合させる。注文登録を無条件で再試行すると二重登録の危険があるため、冪等性キー等の設計を検討する。</p>
+<p>可用性、性能、セキュリティ、費用、運用負荷を比較し、RTO・RPOと業務要件から選ぶ。</p>
+
+<h2>9. 実務製品への対応</h2>
+<p>NginxはWeb層の例、FastAPIはAPを実装するフレームワークの例、PostgreSQLやOracle DatabaseはDBMSの例である。Oracle RACはDB層の可用性・拡張性を考える際の製品技術、JP1/AJSはオンライン処理の後続バッチを管理する製品技術として後続講で扱う。これらの製品固有の設定・バージョン差は本講では未照合。</p>
+
+<h2>10. 要点</h2>
+<p>3層は台数ではなく役割の分離である。正常処理はブラウザ→Web→AP→DBと進み、結果が逆方向に戻る。HTTPステータス、プロセス状態、ポート、通信、DBログ、業務結果を一段ずつ照合する。冗長化しても共通依存や二重実行の危険は残る。</p>
+
+<h2>次講</h2>
+<p>第4講「オンライン処理・バッチ処理・外部システム連携」。理解度チェックは別途、四択10問・15点満点で実施する。</p>
+</article><nav><a href="002.html">前講</a> ｜ <a href="../index.html">講義一覧</a> ｜ <a href="004.html">次講（未公開）</a></nav></main></body></html>
