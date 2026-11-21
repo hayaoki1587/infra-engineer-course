@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 3,
+  "completed_count": 4,
   "lessons": [
     {
       "number": 1,
@@ -87,8 +87,28 @@
     },
     {
       "number": 4,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-21",
+          "answers": [
+            "B",
+            "C",
+            "A",
+            "B",
+            "D",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "全10問正解。オンライン・バッチ・外部連携の違い、ジョブネット、転送と取込の区別、異常終了後の確定範囲、再実行の冪等性を理解。"
+        }
+      ],
       "weaknesses": [],
       "review_topics": []
     },
