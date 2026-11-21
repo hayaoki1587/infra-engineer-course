@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 6,
+  "completed_count": 7,
   "lessons": [
     {
       "number": 1,
@@ -168,8 +168,28 @@
     },
     {
       "number": 7,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-21",
+          "answers": [
+            "B",
+            "A",
+            "C",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "全10問正解。要件・基本設計・詳細設計、異常系テスト、構築検証、運用引継ぎ、DB移行切戻し時の整合性、JP1異常時のCOMMIT確認、外部連携の切替確認、運用受入条件を理解。"
+        }
+      ],
       "weaknesses": [],
       "review_topics": []
     },
