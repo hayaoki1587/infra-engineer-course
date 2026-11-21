@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 7,
+  "completed_count": 8,
   "lessons": [
     {
       "number": 1,
@@ -195,8 +195,28 @@
     },
     {
       "number": 8,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-21",
+          "answers": [
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "A",
+            "D",
+            "C",
+            "B",
+            "D"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "実務判断型10問全問正解。DNS/VIP/実IP、論理・物理故障ドメイン、LB切替の観測限界、冪等キー、Web-AP接続拒否、DBロック・プール待機、JP1再実行時の確定範囲、冗長化投資、移行切戻し時のデータ保全を理解。四択の限界を踏まえ記述演習は任意。"
+        }
+      ],
       "weaknesses": [],
       "review_topics": []
     },
