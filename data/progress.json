@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 4,
+  "completed_count": 5,
   "lessons": [
     {
       "number": 1,
@@ -114,8 +114,28 @@
     },
     {
       "number": 5,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-21T17:21:00+09:00",
+          "answers": [
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "全10問正解。物理構成と論理構成、VIPと実サーバIP、VLAN、共通障害ドメイン、502およびDB接続タイムアウトの切り分け、冗長化設計を理解。"
+        }
+      ],
       "weaknesses": [],
       "review_topics": []
     },
