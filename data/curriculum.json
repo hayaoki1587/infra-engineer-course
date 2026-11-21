@@ -1,0 +1,1256 @@
+{
+  "schema_version": 1,
+  "course": "システム基盤・インフラエンジニア総合講座",
+  "version": "1.0",
+  "total_lessons": 224,
+  "parts": [
+    {
+      "number": 1,
+      "title": "システム基盤の全体像",
+      "start": 1,
+      "end": 8,
+      "count": 8
+    },
+    {
+      "number": 2,
+      "title": "ハードウェア・サーバ",
+      "start": 9,
+      "end": 18,
+      "count": 10
+    },
+    {
+      "number": 3,
+      "title": "OS・Linux・Windows",
+      "start": 19,
+      "end": 33,
+      "count": 15
+    },
+    {
+      "number": 4,
+      "title": "ネットワーク基盤",
+      "start": 34,
+      "end": 51,
+      "count": 18
+    },
+    {
+      "number": 5,
+      "title": "ストレージ・バックアップ",
+      "start": 52,
+      "end": 66,
+      "count": 15
+    },
+    {
+      "number": 6,
+      "title": "データベース基盤",
+      "start": 67,
+      "end": 78,
+      "count": 12
+    },
+    {
+      "number": 7,
+      "title": "アプリケーション基礎・Web/AP連携",
+      "start": 79,
+      "end": 90,
+      "count": 12
+    },
+    {
+      "number": 8,
+      "title": "ミドルウェア・ジョブ管理",
+      "start": 91,
+      "end": 102,
+      "count": 12
+    },
+    {
+      "number": 9,
+      "title": "Active Directory・認証・ID管理",
+      "start": 103,
+      "end": 117,
+      "count": 15
+    },
+    {
+      "number": 10,
+      "title": "Citrix・VDI・シンクライアント",
+      "start": 118,
+      "end": 129,
+      "count": 12
+    },
+    {
+      "number": 11,
+      "title": "仮想化・コンテナ・クラウド",
+      "start": 130,
+      "end": 141,
+      "count": 12
+    },
+    {
+      "number": 12,
+      "title": "運用監視・JP1/IM・可観測性",
+      "start": 142,
+      "end": 153,
+      "count": 12
+    },
+    {
+      "number": 13,
+      "title": "自動化・スクリプト・構成管理",
+      "start": 154,
+      "end": 163,
+      "count": 10
+    },
+    {
+      "number": 14,
+      "title": "セキュリティ・アクセス管理",
+      "start": 164,
+      "end": 171,
+      "count": 8
+    },
+    {
+      "number": 15,
+      "title": "非機能要件・基盤設計",
+      "start": 172,
+      "end": 189,
+      "count": 18
+    },
+    {
+      "number": 16,
+      "title": "構築・移行・テスト",
+      "start": 190,
+      "end": 201,
+      "count": 12
+    },
+    {
+      "number": 17,
+      "title": "ITサービス管理・運用改善",
+      "start": 202,
+      "end": 209,
+      "count": 8
+    },
+    {
+      "number": 18,
+      "title": "総合演習・設計実践",
+      "start": 210,
+      "end": 224,
+      "count": 15
+    }
+  ],
+  "lessons": [
+    {
+      "number": 1,
+      "title": "システム基盤とは何か ― インフラエンジニアの役割と担当範囲",
+      "part": 1
+    },
+    {
+      "number": 2,
+      "title": "企業情報システムの全体構成と主要コンポーネント",
+      "part": 1
+    },
+    {
+      "number": 3,
+      "title": "Web・AP・DBの3層アーキテクチャ",
+      "part": 1
+    },
+    {
+      "number": 4,
+      "title": "オンライン処理・バッチ処理・外部システム連携",
+      "part": 1
+    },
+    {
+      "number": 5,
+      "title": "物理構成・論理構成・システム構成図の読み方",
+      "part": 1
+    },
+    {
+      "number": 6,
+      "title": "可用性・性能・拡張性・セキュリティの基本概念",
+      "part": 1
+    },
+    {
+      "number": 7,
+      "title": "開発・構築・運用保守・移行のライフサイクル",
+      "part": 1
+    },
+    {
+      "number": 8,
+      "title": "総合演習：企業システムの構成図と処理経路を読み解く",
+      "part": 1
+    },
+    {
+      "number": 9,
+      "title": "コンピュータの基本構造と命令実行の仕組み",
+      "part": 2
+    },
+    {
+      "number": 10,
+      "title": "CPUの構造・コア・スレッド・キャッシュ",
+      "part": 2
+    },
+    {
+      "number": 11,
+      "title": "メモリの構造・RAM・ECC・メモリ階層",
+      "part": 2
+    },
+    {
+      "number": 12,
+      "title": "I/O処理・バス・PCIe・DMAの仕組み",
+      "part": 2
+    },
+    {
+      "number": 13,
+      "title": "HDD・SSD・NVMeの構造と性能特性",
+      "part": 2
+    },
+    {
+      "number": 14,
+      "title": "物理サーバの構成・ラック・電源・冷却",
+      "part": 2
+    },
+    {
+      "number": 15,
+      "title": "BIOS・UEFI・ファームウェア・起動処理",
+      "part": 2
+    },
+    {
+      "number": 16,
+      "title": "ハードウェア冗長化と故障検知",
+      "part": 2
+    },
+    {
+      "number": 17,
+      "title": "サーバ性能の基本指標とボトルネック",
+      "part": 2
+    },
+    {
+      "number": 18,
+      "title": "実務演習：サーバ構成とリソース不足を分析する",
+      "part": 2
+    },
+    {
+      "number": 19,
+      "title": "OSの役割・カーネル・ユーザー空間",
+      "part": 3
+    },
+    {
+      "number": 20,
+      "title": "プロセス・スレッド・コンテキストスイッチ",
+      "part": 3
+    },
+    {
+      "number": 21,
+      "title": "仮想メモリ・ページング・スワップ",
+      "part": 3
+    },
+    {
+      "number": 22,
+      "title": "ファイルシステム・マウント・アクセス権",
+      "part": 3
+    },
+    {
+      "number": 23,
+      "title": "OSの起動・停止とサービス管理",
+      "part": 3
+    },
+    {
+      "number": 24,
+      "title": "Linuxのディレクトリ構造と基本コマンド",
+      "part": 3
+    },
+    {
+      "number": 25,
+      "title": "Linuxのユーザー・グループ・sudo・権限",
+      "part": 3
+    },
+    {
+      "number": 26,
+      "title": "Linuxのプロセス・サービス・systemd管理",
+      "part": 3
+    },
+    {
+      "number": 27,
+      "title": "Linuxのログ・journal・syslog・障害調査",
+      "part": 3
+    },
+    {
+      "number": 28,
+      "title": "Linuxのネットワーク設定・名前解決・疎通確認",
+      "part": 3
+    },
+    {
+      "number": 29,
+      "title": "Windows Serverの構造・役割・管理ツール",
+      "part": 3
+    },
+    {
+      "number": 30,
+      "title": "Windowsのサービス・イベントログ・タスク管理",
+      "part": 3
+    },
+    {
+      "number": 31,
+      "title": "Windowsのファイル共有・NTFS権限・SMB",
+      "part": 3
+    },
+    {
+      "number": 32,
+      "title": "OSのパッチ・更新・再起動・変更管理",
+      "part": 3
+    },
+    {
+      "number": 33,
+      "title": "実務演習：Linux・Windowsの性能障害を切り分ける",
+      "part": 3
+    },
+    {
+      "number": 34,
+      "title": "ネットワークの全体像とOSI・TCP/IPモデル",
+      "part": 4
+    },
+    {
+      "number": 35,
+      "title": "Ethernet・MACアドレス・スイッチング",
+      "part": 4
+    },
+    {
+      "number": 36,
+      "title": "VLAN・トランク・L2ネットワーク設計",
+      "part": 4
+    },
+    {
+      "number": 37,
+      "title": "IPアドレス・サブネット・CIDR",
+      "part": 4
+    },
+    {
+      "number": 38,
+      "title": "ARP・NDP・ICMPと疎通確認",
+      "part": 4
+    },
+    {
+      "number": 39,
+      "title": "ルーティング・デフォルトゲートウェイ・経路表",
+      "part": 4
+    },
+    {
+      "number": 40,
+      "title": "TCP・UDP・ポート・コネクション管理",
+      "part": 4
+    },
+    {
+      "number": 41,
+      "title": "TCPの接続確立・再送・ウィンドウ・性能",
+      "part": 4
+    },
+    {
+      "number": 42,
+      "title": "DNSの仕組み・名前解決・キャッシュ",
+      "part": 4
+    },
+    {
+      "number": 43,
+      "title": "DHCP・NTPと基盤共通サービス",
+      "part": 4
+    },
+    {
+      "number": 44,
+      "title": "HTTP・HTTPS・TLSの通信",
+      "part": 4
+    },
+    {
+      "number": 45,
+      "title": "ファイアウォール・ACL・ステートフル制御",
+      "part": 4
+    },
+    {
+      "number": 46,
+      "title": "NAT・プロキシ・リバースプロキシ",
+      "part": 4
+    },
+    {
+      "number": 47,
+      "title": "ロードバランサ・ヘルスチェック・負荷分散",
+      "part": 4
+    },
+    {
+      "number": 48,
+      "title": "ネットワーク冗長化・LAG・VRRP・経路切替",
+      "part": 4
+    },
+    {
+      "number": 49,
+      "title": "VPN・閉域網・拠点間接続",
+      "part": 4
+    },
+    {
+      "number": 50,
+      "title": "ネットワーク監視・パケット解析・障害切り分け",
+      "part": 4
+    },
+    {
+      "number": 51,
+      "title": "実務演習：通信できないシステムの原因を追跡する",
+      "part": 4
+    },
+    {
+      "number": 52,
+      "title": "ストレージの基本構造・ブロック・ファイル・オブジェクト",
+      "part": 5
+    },
+    {
+      "number": 53,
+      "title": "RAIDの仕組みと冗長性・性能・容量",
+      "part": 5
+    },
+    {
+      "number": 54,
+      "title": "SAN・NAS・DASの違いと構成",
+      "part": 5
+    },
+    {
+      "number": 55,
+      "title": "FC・iSCSI・HBA・LUN・マルチパス",
+      "part": 5
+    },
+    {
+      "number": 56,
+      "title": "ストレージ仮想化・シンプロビジョニング・容量管理",
+      "part": 5
+    },
+    {
+      "number": 57,
+      "title": "スナップショット・クローン・レプリケーション",
+      "part": 5
+    },
+    {
+      "number": 58,
+      "title": "ShadowImageのコピー・スプリット・再同期",
+      "part": 5
+    },
+    {
+      "number": 59,
+      "title": "TrueCopyのリモート複製と災害対策",
+      "part": 5
+    },
+    {
+      "number": 60,
+      "title": "バックアップの種類・世代管理・保持期間",
+      "part": 5
+    },
+    {
+      "number": 61,
+      "title": "バックアップ整合性・静止点・アプリ連携",
+      "part": 5
+    },
+    {
+      "number": 62,
+      "title": "NetBackupの構成・ポリシー・カタログ",
+      "part": 5
+    },
+    {
+      "number": 63,
+      "title": "LTOテープ・メディア管理・棚卸し・復元",
+      "part": 5
+    },
+    {
+      "number": 64,
+      "title": "リストア・リカバリ・RPO・RTO",
+      "part": 5
+    },
+    {
+      "number": 65,
+      "title": "ストレージ性能・IOPS・レイテンシ・障害解析",
+      "part": 5
+    },
+    {
+      "number": 66,
+      "title": "実務演習：バックアップ方式と復旧手順を設計する",
+      "part": 5
+    },
+    {
+      "number": 67,
+      "title": "DBMSの役割とRDBMSの基本構造",
+      "part": 6
+    },
+    {
+      "number": 68,
+      "title": "SQL・テーブル・インデックス・実行計画",
+      "part": 6
+    },
+    {
+      "number": 69,
+      "title": "トランザクション・ACID・ロック・分離レベル",
+      "part": 6
+    },
+    {
+      "number": 70,
+      "title": "DBのメモリ・プロセス・ディスクI/O",
+      "part": 6
+    },
+    {
+      "number": 71,
+      "title": "Oracle Databaseのインスタンスとデータベース",
+      "part": 6
+    },
+    {
+      "number": 72,
+      "title": "OracleのSGA・PGA・バックグラウンドプロセス",
+      "part": 6
+    },
+    {
+      "number": 73,
+      "title": "Oracleの表領域・データファイル・REDO・UNDO",
+      "part": 6
+    },
+    {
+      "number": 74,
+      "title": "DB接続・リスナー・コネクションプール",
+      "part": 6
+    },
+    {
+      "number": 75,
+      "title": "DBバックアップ・DUMP・RMAN・整合性",
+      "part": 6
+    },
+    {
+      "number": 76,
+      "title": "DB障害復旧・REDO適用・リカバリ",
+      "part": 6
+    },
+    {
+      "number": 77,
+      "title": "Oracle RAC・クラスタリング・可用性",
+      "part": 6
+    },
+    {
+      "number": 78,
+      "title": "実務演習：DB性能低下と接続障害を切り分ける",
+      "part": 6
+    },
+    {
+      "number": 79,
+      "title": "基盤担当者に必要なアプリケーションの基礎",
+      "part": 7
+    },
+    {
+      "number": 80,
+      "title": "Webアプリケーションのリクエスト処理",
+      "part": 7
+    },
+    {
+      "number": 81,
+      "title": "Webサーバ・APサーバ・アプリケーション実行環境",
+      "part": 7
+    },
+    {
+      "number": 82,
+      "title": "REST API・JSON・HTTPステータスコード",
+      "part": 7
+    },
+    {
+      "number": 83,
+      "title": "セッション・Cookie・認証状態の管理",
+      "part": 7
+    },
+    {
+      "number": 84,
+      "title": "アプリケーションとDBの接続・トランザクション",
+      "part": 7
+    },
+    {
+      "number": 85,
+      "title": "同期処理・非同期処理・キュー・メッセージング",
+      "part": 7
+    },
+    {
+      "number": 86,
+      "title": "バッチアプリケーション・ファイル連携・排他制御",
+      "part": 7
+    },
+    {
+      "number": 87,
+      "title": "アプリの起動・停止・デプロイ・設定管理",
+      "part": 7
+    },
+    {
+      "number": 88,
+      "title": "アプリケーションログ・例外・タイムアウト",
+      "part": 7
+    },
+    {
+      "number": 89,
+      "title": "アプリ性能と基盤性能の関係・障害境界",
+      "part": 7
+    },
+    {
+      "number": 90,
+      "title": "実務演習：Web/AP/DBの障害を切り分ける",
+      "part": 7
+    },
+    {
+      "number": 91,
+      "title": "ミドルウェアの役割とシステム内での位置付け",
+      "part": 8
+    },
+    {
+      "number": 92,
+      "title": "Webサーバの構造・Nginx・Apache",
+      "part": 8
+    },
+    {
+      "number": 93,
+      "title": "APサーバ・Java実行環境・JVMの基本",
+      "part": 8
+    },
+    {
+      "number": 94,
+      "title": "リバースプロキシ・TLS終端・セッション維持",
+      "part": 8
+    },
+    {
+      "number": 95,
+      "title": "ジョブ管理・スケジューリングの基本原理",
+      "part": 8
+    },
+    {
+      "number": 96,
+      "title": "JP1/AJSの構成・スケジューラサービス",
+      "part": 8
+    },
+    {
+      "number": 97,
+      "title": "JP1/AJSのジョブ・ジョブネット・ジョブグループ",
+      "part": 8
+    },
+    {
+      "number": 98,
+      "title": "JP1/AJSの実行条件・カレンダー・依存関係",
+      "part": 8
+    },
+    {
+      "number": 99,
+      "title": "JP1/AJSの実行制御・保留・再実行・異常終了",
+      "part": 8
+    },
+    {
+      "number": 100,
+      "title": "ジョブのリラン・二重実行防止・整合性",
+      "part": 8
+    },
+    {
+      "number": 101,
+      "title": "オンライン・バッチ連携と運用スケジュール",
+      "part": 8
+    },
+    {
+      "number": 102,
+      "title": "実務演習：夜間バッチ異常の原因を調査する",
+      "part": 8
+    },
+    {
+      "number": 103,
+      "title": "認証・認可・アカウント・権限の基本",
+      "part": 9
+    },
+    {
+      "number": 104,
+      "title": "ローカルアカウントとドメインアカウント",
+      "part": 9
+    },
+    {
+      "number": 105,
+      "title": "Active Directory Domain Servicesの全体構造",
+      "part": 9
+    },
+    {
+      "number": 106,
+      "title": "ドメイン・フォレスト・ツリー・信頼関係",
+      "part": 9
+    },
+    {
+      "number": 107,
+      "title": "ドメインコントローラ・DNS・レプリケーション",
+      "part": 9
+    },
+    {
+      "number": 108,
+      "title": "ADのユーザー・コンピュータ・グループ・OU",
+      "part": 9
+    },
+    {
+      "number": 109,
+      "title": "Kerberos認証・チケット・ログオン処理",
+      "part": 9
+    },
+    {
+      "number": 110,
+      "title": "LDAP・ディレクトリ検索・認証連携",
+      "part": 9
+    },
+    {
+      "number": 111,
+      "title": "グループポリシー（GPO）の仕組みと適用順序",
+      "part": 9
+    },
+    {
+      "number": 112,
+      "title": "Windowsアクセス権・共有権限・グループ設計",
+      "part": 9
+    },
+    {
+      "number": 113,
+      "title": "サービスアカウント・gMSA・資格情報管理",
+      "part": 9
+    },
+    {
+      "number": 114,
+      "title": "SSO・フェデレーション・SAML・OIDC",
+      "part": 9
+    },
+    {
+      "number": 115,
+      "title": "Microsoft Entra IDとオンプレミスADの関係",
+      "part": 9
+    },
+    {
+      "number": 116,
+      "title": "ADの冗長化・バックアップ・障害調査",
+      "part": 9
+    },
+    {
+      "number": 117,
+      "title": "実務演習：ログオン失敗と権限不足を切り分ける",
+      "part": 9
+    },
+    {
+      "number": 118,
+      "title": "シンクライアント・VDI・リモートデスクトップの基本",
+      "part": 10
+    },
+    {
+      "number": 119,
+      "title": "VDI・セッションベース方式・公開アプリの違い",
+      "part": 10
+    },
+    {
+      "number": 120,
+      "title": "Citrix Virtual Apps and Desktopsの全体構成",
+      "part": 10
+    },
+    {
+      "number": 121,
+      "title": "Citrix Workspace・StoreFront・ユーザー接続",
+      "part": 10
+    },
+    {
+      "number": 122,
+      "title": "Delivery Controller・VDA・接続先の選択",
+      "part": 10
+    },
+    {
+      "number": 123,
+      "title": "ICA/HDX・画面転送・入力・周辺機器連携",
+      "part": 10
+    },
+    {
+      "number": 124,
+      "title": "Citrix Gateway・外部接続・認証",
+      "part": 10
+    },
+    {
+      "number": 125,
+      "title": "CitrixとActive Directory・GPOの連携",
+      "part": 10
+    },
+    {
+      "number": 126,
+      "title": "仮想デスクトップのプロビジョニング・イメージ管理",
+      "part": 10
+    },
+    {
+      "number": 127,
+      "title": "ユーザープロファイル・セッション・切断と再接続",
+      "part": 10
+    },
+    {
+      "number": 128,
+      "title": "Citrixの性能監視・ログ・障害切り分け",
+      "part": 10
+    },
+    {
+      "number": 129,
+      "title": "実務演習：Citrixに接続できない原因を調査する",
+      "part": 10
+    },
+    {
+      "number": 130,
+      "title": "仮想化の基本原理・ハイパーバイザ・仮想マシン",
+      "part": 11
+    },
+    {
+      "number": 131,
+      "title": "VMware・Hyper-V・KVMの構成と管理",
+      "part": 11
+    },
+    {
+      "number": 132,
+      "title": "仮想CPU・仮想メモリ・オーバーコミット",
+      "part": 11
+    },
+    {
+      "number": 133,
+      "title": "仮想ネットワーク・仮想スイッチ・仮想ストレージ",
+      "part": 11
+    },
+    {
+      "number": 134,
+      "title": "仮想マシンのHA・ライブマイグレーション・障害対応",
+      "part": 11
+    },
+    {
+      "number": 135,
+      "title": "コンテナの仕組み・Namespace・cgroups",
+      "part": 11
+    },
+    {
+      "number": 136,
+      "title": "Docker・イメージ・コンテナ・ボリューム",
+      "part": 11
+    },
+    {
+      "number": 137,
+      "title": "Docker Composeによる複数サービス構成",
+      "part": 11
+    },
+    {
+      "number": 138,
+      "title": "Kubernetesの基本構造・Pod・Service・Deployment",
+      "part": 11
+    },
+    {
+      "number": 139,
+      "title": "クラウドのIaaS・PaaS・SaaSと責任共有モデル",
+      "part": 11
+    },
+    {
+      "number": 140,
+      "title": "AWS・Azureの基本サービスとオンプレミス比較",
+      "part": 11
+    },
+    {
+      "number": 141,
+      "title": "実務演習：仮想化・コンテナ基盤を構築し障害を再現する",
+      "part": 11
+    },
+    {
+      "number": 142,
+      "title": "システム監視の目的・監視対象・監視設計",
+      "part": 12
+    },
+    {
+      "number": 143,
+      "title": "死活監視・リソース監視・サービス監視",
+      "part": 12
+    },
+    {
+      "number": 144,
+      "title": "ログ監視・イベント監視・SNMP・Syslog",
+      "part": 12
+    },
+    {
+      "number": 145,
+      "title": "監視しきい値・アラート・誤検知・通知設計",
+      "part": 12
+    },
+    {
+      "number": 146,
+      "title": "JP1/IMの全体構成と統合監視の仕組み",
+      "part": 12
+    },
+    {
+      "number": 147,
+      "title": "JP1/Base・JP1イベント・イベント転送",
+      "part": 12
+    },
+    {
+      "number": 148,
+      "title": "JP1/IMのイベント表示・フィルタ・重大度",
+      "part": 12
+    },
+    {
+      "number": 149,
+      "title": "JP1/IMの監視ツリー・イベント集約・相関",
+      "part": 12
+    },
+    {
+      "number": 150,
+      "title": "JP1/IMとJP1/AJS・OS監視の連携",
+      "part": 12
+    },
+    {
+      "number": 151,
+      "title": "メトリクス・ログ・トレースと可観測性",
+      "part": 12
+    },
+    {
+      "number": 152,
+      "title": "性能監視・キャパシティ管理・障害の予兆検知",
+      "part": 12
+    },
+    {
+      "number": 153,
+      "title": "実務演習：JP1/IMのイベントから障害原因を追跡する",
+      "part": 12
+    },
+    {
+      "number": 154,
+      "title": "運用自動化の目的・適用範囲・リスク",
+      "part": 13
+    },
+    {
+      "number": 155,
+      "title": "Shellスクリプトの基本構文と実行制御",
+      "part": 13
+    },
+    {
+      "number": 156,
+      "title": "Shellによるログ解析・ファイル操作・定期処理",
+      "part": 13
+    },
+    {
+      "number": 157,
+      "title": "PowerShellによるWindows・AD管理",
+      "part": 13
+    },
+    {
+      "number": 158,
+      "title": "Pythonによる基盤運用の自動化",
+      "part": 13
+    },
+    {
+      "number": 159,
+      "title": "Git・バージョン管理・変更履歴",
+      "part": 13
+    },
+    {
+      "number": 160,
+      "title": "Ansible・構成管理・冪等性",
+      "part": 13
+    },
+    {
+      "number": 161,
+      "title": "Infrastructure as Code・Terraformの基本",
+      "part": 13
+    },
+    {
+      "number": 162,
+      "title": "CI/CD・自動テスト・構成変更の安全性",
+      "part": 13
+    },
+    {
+      "number": 163,
+      "title": "実務演習：監視・ログ収集・定型作業を自動化する",
+      "part": 13
+    },
+    {
+      "number": 164,
+      "title": "インフラセキュリティの基本原則と多層防御",
+      "part": 14
+    },
+    {
+      "number": 165,
+      "title": "OS・ミドルウェアのハードニング",
+      "part": 14
+    },
+    {
+      "number": 166,
+      "title": "脆弱性管理・パッチ管理・設定不備への対応",
+      "part": 14
+    },
+    {
+      "number": 167,
+      "title": "認証・認可・最小権限・特権ID管理",
+      "part": 14
+    },
+    {
+      "number": 168,
+      "title": "暗号化・証明書・鍵・シークレット管理",
+      "part": 14
+    },
+    {
+      "number": 169,
+      "title": "ネットワーク分離・踏み台・リモート管理",
+      "part": 14
+    },
+    {
+      "number": 170,
+      "title": "監査ログ・操作証跡・セキュリティ監視",
+      "part": 14
+    },
+    {
+      "number": 171,
+      "title": "実務演習：基盤構成のセキュリティリスクを評価する",
+      "part": 14
+    },
+    {
+      "number": 172,
+      "title": "システム基盤設計の全体像と設計プロセス",
+      "part": 15
+    },
+    {
+      "number": 173,
+      "title": "要件定義・機能要件・非機能要件の違い",
+      "part": 15
+    },
+    {
+      "number": 174,
+      "title": "非機能要求グレードと要求水準の整理",
+      "part": 15
+    },
+    {
+      "number": 175,
+      "title": "システム構成方式の比較・選定とトレードオフ",
+      "part": 15
+    },
+    {
+      "number": 176,
+      "title": "可用性設計・SLA・SLO・稼働率",
+      "part": 15
+    },
+    {
+      "number": 177,
+      "title": "冗長化設計・クラスタ・フェイルオーバー",
+      "part": 15
+    },
+    {
+      "number": 178,
+      "title": "バックアップ・DR設計・RPO・RTO",
+      "part": 15
+    },
+    {
+      "number": 179,
+      "title": "性能設計・応答時間・スループット・負荷モデル",
+      "part": 15
+    },
+    {
+      "number": 180,
+      "title": "容量設計・サイジング・将来増加予測",
+      "part": 15
+    },
+    {
+      "number": 181,
+      "title": "ネットワーク設計・アドレス設計・通信要件",
+      "part": 15
+    },
+    {
+      "number": 182,
+      "title": "サーバ・OS・ストレージの構成設計",
+      "part": 15
+    },
+    {
+      "number": 183,
+      "title": "DB・ミドルウェア・ジョブの構成設計",
+      "part": 15
+    },
+    {
+      "number": 184,
+      "title": "認証・権限・セキュリティの設計",
+      "part": 15
+    },
+    {
+      "number": 185,
+      "title": "監視・バックアップ・運用の設計",
+      "part": 15
+    },
+    {
+      "number": 186,
+      "title": "基本設計書の構成と書き方",
+      "part": 15
+    },
+    {
+      "number": 187,
+      "title": "詳細設計書・パラメータシートの作り方",
+      "part": 15
+    },
+    {
+      "number": 188,
+      "title": "設計レビュー・設計根拠・リスク評価",
+      "part": 15
+    },
+    {
+      "number": 189,
+      "title": "設計演習：要件から基盤構成案を作成する",
+      "part": 15
+    },
+    {
+      "number": 190,
+      "title": "システム構築工程と作業計画",
+      "part": 16
+    },
+    {
+      "number": 191,
+      "title": "構築手順書・パラメータ設定・証跡管理",
+      "part": 16
+    },
+    {
+      "number": 192,
+      "title": "サーバ・OS・ネットワークの構築",
+      "part": 16
+    },
+    {
+      "number": 193,
+      "title": "ストレージ・DB・ミドルウェアの構築",
+      "part": 16
+    },
+    {
+      "number": 194,
+      "title": "単体テスト・結合テスト・システムテスト",
+      "part": 16
+    },
+    {
+      "number": 195,
+      "title": "性能テスト・負荷テスト・容量検証",
+      "part": 16
+    },
+    {
+      "number": 196,
+      "title": "障害テスト・冗長切替テスト・復旧テスト",
+      "part": 16
+    },
+    {
+      "number": 197,
+      "title": "システム移行方式・並行稼働・一括切替",
+      "part": 16
+    },
+    {
+      "number": 198,
+      "title": "データ移行・整合性確認・移行リハーサル",
+      "part": 16
+    },
+    {
+      "number": 199,
+      "title": "切替計画・切戻し計画・判定基準",
+      "part": 16
+    },
+    {
+      "number": 200,
+      "title": "本番リリース・初期稼働確認・引継ぎ",
+      "part": 16
+    },
+    {
+      "number": 201,
+      "title": "実務演習：構築・移行計画と障害時の切戻しを設計する",
+      "part": 16
+    },
+    {
+      "number": 202,
+      "title": "ITサービス管理・ITILの基本概念",
+      "part": 17
+    },
+    {
+      "number": 203,
+      "title": "インシデント管理・一次対応・エスカレーション",
+      "part": 17
+    },
+    {
+      "number": 204,
+      "title": "問題管理・根本原因分析・再発防止",
+      "part": 17
+    },
+    {
+      "number": 205,
+      "title": "変更管理・リリース管理・承認プロセス",
+      "part": 17
+    },
+    {
+      "number": 206,
+      "title": "構成管理・CMDB・資産管理",
+      "part": 17
+    },
+    {
+      "number": 207,
+      "title": "運用手順書・作業統制・ヒューマンエラー対策",
+      "part": 17
+    },
+    {
+      "number": 208,
+      "title": "運用品質・KPI・改善活動・自動化効果",
+      "part": 17
+    },
+    {
+      "number": 209,
+      "title": "実務演習：障害報告書と恒久対策を作成する",
+      "part": 17
+    },
+    {
+      "number": 210,
+      "title": "総合演習の進め方・対象システムと業務要件",
+      "part": 18
+    },
+    {
+      "number": 211,
+      "title": "要件整理・システム構成・コンポーネント選定",
+      "part": 18
+    },
+    {
+      "number": 212,
+      "title": "Web/AP/DBの3層システム基本設計",
+      "part": 18
+    },
+    {
+      "number": 213,
+      "title": "サーバ・ネットワーク・ストレージの詳細設計",
+      "part": 18
+    },
+    {
+      "number": 214,
+      "title": "AD・認証・権限管理の設計",
+      "part": 18
+    },
+    {
+      "number": 215,
+      "title": "ジョブ・バックアップ・監視の運用設計",
+      "part": 18
+    },
+    {
+      "number": 216,
+      "title": "可用性・性能・容量の設計レビュー",
+      "part": 18
+    },
+    {
+      "number": 217,
+      "title": "Dockerによる3層システム構築演習",
+      "part": 18
+    },
+    {
+      "number": 218,
+      "title": "障害演習：Web/AP/DBの通信・性能障害",
+      "part": 18
+    },
+    {
+      "number": 219,
+      "title": "障害演習：ストレージ・DB・バックアップ障害",
+      "part": 18
+    },
+    {
+      "number": 220,
+      "title": "障害演習：AD・Citrix・VDIの接続障害",
+      "part": 18
+    },
+    {
+      "number": 221,
+      "title": "障害演習：JP1/AJS・JP1/IMと夜間バッチ障害",
+      "part": 18
+    },
+    {
+      "number": 222,
+      "title": "システム移行・本番切替・切戻し総合演習",
+      "part": 18
+    },
+    {
+      "number": 223,
+      "title": "総合設計レビュー：設計書・構成図・運用設計の評価",
+      "part": 18
+    },
+    {
+      "number": 224,
+      "title": "最終実技評価：中級インフラエンジニアとしての総合判断",
+      "part": 18
+    }
+  ]
+}
