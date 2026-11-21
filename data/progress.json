@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 5,
+  "completed_count": 6,
   "lessons": [
     {
       "number": 1,
@@ -141,8 +141,28 @@
     },
     {
       "number": 6,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-21",
+          "answers": [
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "全10問正解。可用性、稼働率、p95、スケールアウト、認証と認可、DB接続プール待ち、RTO/RPO、性能ボトルネック、権限不備対応を理解。"
+        }
+      ],
       "weaknesses": [],
       "review_topics": []
     },
