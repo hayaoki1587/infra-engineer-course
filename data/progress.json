@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 2,
+  "completed_count": 3,
   "lessons": [
     {
       "number": 1,
@@ -60,8 +60,28 @@
     },
     {
       "number": 3,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-21",
+          "answers": [
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "全問正解。3層の役割、COMMIT、Nginx転送、HTTP 201、502/504切り分け、物理障害ドメイン、ヘルスチェック、冪等性を理解。"
+        }
+      ],
       "weaknesses": [],
       "review_topics": []
     },
