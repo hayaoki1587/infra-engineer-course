@@ -2,12 +2,32 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 0,
+  "completed_count": 1,
   "lessons": [
     {
       "number": 1,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-21",
+          "answers": [
+            "B",
+            "C",
+            "B",
+            "A",
+            "D",
+            "B",
+            "C",
+            "D",
+            "B",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "全10問正解。基盤の範囲、3層処理、ログ・状態・設定、障害切り分け、冗長化とバックアップの区別を理解。"
+        }
+      ],
       "weaknesses": [],
       "review_topics": []
     },
