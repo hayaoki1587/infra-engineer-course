@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 10,
+  "completed_count": 11,
   "lessons": [
     {
       "number": 1,
@@ -282,10 +282,32 @@
     },
     {
       "number": 11,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-22",
+          "answers": [
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "10問全問正解。RAMのavailableとswap、キャッシュミスとページフォルト、ECC訂正可能エラーの初動、RSS増加の切り分け、コンテナOOM、DBとバッチのメモリ競合、片系運転時の容量設計を適切に判断。第10講Q5のDB応答待ち中のCPU解放も正答。四択での判断力を確認したが、実ログ調査・実機診断は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "実環境でfreeとvmstatの値を照合し、ページキャッシュ利用とメモリ不足を切り分ける実習（発展課題）"
+      ]
     },
     {
       "number": 12,
