@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 8,
+  "completed_count": 9,
   "lessons": [
     {
       "number": 1,
@@ -222,8 +222,28 @@
     },
     {
       "number": 9,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-22",
+          "answers": [
+            "A",
+            "C",
+            "B",
+            "D",
+            "A",
+            "B",
+            "C",
+            "D",
+            "A",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "実務判断型10問全問正解。CPUの命令取得・分岐予測、OSのI/O待ち、SMT、キャッシュ階層、DB待機の切り分け、ページング、SLO、COMMITログフラッシュ、Docker CPU quotaによるスロットリングを理解。四択の限界を踏まえ記述演習は任意。"
+        }
+      ],
       "weaknesses": [],
       "review_topics": []
     },
