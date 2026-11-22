@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 9,
+  "completed_count": 10,
   "lessons": [
     {
       "number": 1,
@@ -249,10 +249,36 @@
     },
     {
       "number": 10,
-      "status": "not_started",
-      "attempts": [],
-      "weaknesses": [],
-      "review_topics": []
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-22",
+          "answers": [
+            "A",
+            "C",
+            "B",
+            "D",
+            "B",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D"
+          ],
+          "score": 14,
+          "max_score": 15,
+          "correct_count": 9,
+          "notes": "実務判断型10問中9問正解。Q5のみ誤答（B→A）：DB応答待ちのスレッドがCPUを占有し続けるとは限らず、OSは別の実行可能スレッドを動かせる。SMT・キャッシュ・CPU偏在・SLO・コンテナCPU制限・DBロック・単一処理の設計判断は理解。"
+        }
+      ],
+      "weaknesses": [
+        "DBやI/Oの返事待ち中のスレッドは、通常CPUを占有し続けず、OSが別の実行可能な仕事を動かせるという理解"
+      ],
+      "review_topics": [
+        "CPU計算時間と待機時間の区別",
+        "OSスケジューラによるI/O待ちスレッドの扱い",
+        "ビジーウェイトと通常のブロッキング待機の違い"
+      ]
     },
     {
       "number": 11,
