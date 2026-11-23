@@ -1,0 +1,166 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第13講｜HDD・SSD・NVMeの構造と性能特性</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.85}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="012.html">前講：第12講</a> ｜ 第13講 / 全224講 ｜ 次講：第14講（未公開）</nav><article><h1>第13講 HDD・SSD・NVMeの構造と性能特性</h1>
+<h2>到達目標・前提</h2>
+<p>1. HDDとSSDでデータを保存・読み出す仕組みの違いを説明できる。</p>
+<p>2. SATA・SAS・NVMe・PCIeの関係を混同せずに説明できる。</p>
+<p>3. IOPS・帯域幅・レイテンシ、ランダム・シーケンシャル、読書き混在の違いから適切な装置を判断できる。</p>
+<p>4. SMART・NVMeの健全性情報、OS・DBの待機情報を照合し、故障と負荷集中を区別する。</p>
+<p>5. RAID、バックアップ、冗長化、耐久性の限界を踏まえて設計を判断できる。</p>
+<h3>正本と資料の状態</h3>
+<p>2026-11-23に運用マスターv1.2、正式カリキュラム18編224講、進捗12/224講をGitHubから確認。技術的な説明は汎用原理を中心とする。ATA/SATA、SCSI/SAS、NVM Express、NVMe仕様、メーカーのSMART項目定義、Oracle/NetBackupの製品マニュアルの<strong>特定版・該当節は今回未照合</strong>。装置の型番・ファームウェア・OSで項目や仕様は異なる。下記の性能値・監視ログは説明用の架空例であり、実測やコマンド実行結果ではない。</p>
+<p>重要度A：保存方式、読込みの因果関係、性能指標、障害初動。B：接続規格、耐久性、RAID、運用。C：設計比較と実習。</p>
+<h2>1. なぜ保存装置を理解するのか</h2>
+<p>CPUが速く、RAMが十分でも、必要なデータが保存装置から届かなければ処理は進まない。たとえばDBが大量の小さなデータを読み、ストレージからの返事を待つ間、APのCPU使用率が低いのに利用者の応答時間が長くなる。前講の「I/O待ち」と今回の「保存装置の内部」を結び付ける。</p>
+<p><strong>ストレージ（storage）</strong>はデータを電源断後も保存する装置・仕組み。<strong>揮発性</strong>とは電源が切れると内容を保持できない性質で、一般的なRAMは揮発性、HDDとSSDは不揮発性である。ただし不揮発性でも故障・誤操作・災害でデータを失う可能性がある。</p>
+<h2>2. HDDの構造：円盤と磁気ヘッド</h2>
+<figure><img src="../assets/lesson013/hdd-ssd.svg" alt="HDDのプラッタ、磁気ヘッド、アーム、回転待ち"><figcaption>HDDのプラッタ、磁気ヘッド、アーム、回転待ち</figcaption></figure>
+<p><strong>HDD（Hard Disk Drive、磁気ディスク装置）</strong>は、磁性体を塗った円盤（<strong>プラッタ</strong>）を回転させ、<strong>磁気ヘッド</strong>でデータを読み書きする。ヘッドを目的の位置へ動かす機構が<strong>アーム</strong>である。</p>
+<p>読みたいデータが離れた場所にあれば、①ヘッドを目的の位置へ動かす（<strong>シーク</strong>）、②円盤の目的の部分がヘッドの下へ来るまで待つ（<strong>回転待ち</strong>）、③データを転送する。したがって、離れた場所を何度も読むと機械的な移動と回転待ちが積み重なる。</p>
+<p><strong>ランダムI/O</strong>は離れた位置の小さなデータを次々に読む・書く動作。<strong>シーケンシャルI/O</strong>は連続した大きなデータを順に読む・書く動作。HDDは一般に後者が得意で、前者では機械的な待ち時間が目立つ。</p>
+<p>例：100件のデータが円盤上の離れた位置にあれば、そのたびに位置合わせが必要になりやすい。一方、連続した1個の大きなファイルなら、位置合わせの回数を抑えやすい。実際の性能はキャッシュ、ファイルの配置、同時処理数にも左右される。</p>
+<h2>3. SSDの構造：電気的に記憶する半導体</h2>
+<p><strong>SSD（Solid State Drive、半導体を使う保存装置）</strong>は、一般的に<strong>NANDフラッシュメモリ</strong>という、電源を切ってもデータを保持できる半導体を使う。HDDのような回転円盤と磁気ヘッドを必要としない。</p>
+<p>SSD内部には<strong>コントローラ</strong>（データの読み書きや配置を管理する制御回路）があり、OSから来た読書き要求を実際のフラッシュメモリの操作に変換する。装置によっては<strong>DRAMキャッシュ</strong>（管理情報や一時的なデータを保持する高速メモリ）も使う。</p>
+<p>SSDは機械的なシークが不要なので、小さなデータへのランダムアクセスでHDDより低い待ち時間を実現しやすい。ただし「SSDならどんな条件でも速い」とは言えない。内部の並列処理能力、接続方式、空き領域、温度、書込み量で性能が変わる。</p>
+<h2>4. SSDはなぜ上書きが難しいのか</h2>
+<p>NANDフラッシュは、細かい単位の<strong>ページ</strong>で読み書きし、より大きな単位の<strong>ブロック</strong>で消去するという制約を持つ。ここでいうSSD内部のページは、前講のOSのメモリページとは別の単位である。</p>
+<p>SSDは使用中のデータを別の場所へ移し、不要になった領域をまとめて消去することがある。これを<strong>ガベージコレクション（GC）</strong>と呼ぶ。<strong>ウェアレベリング</strong>は、書込み・消去が一部の場所へ集中しないよう使用場所を分散させる仕組みである。</p>
+<p><strong>書込み増幅（Write Amplification）</strong>は、OSが要求した書込み量よりも、SSD内部で実際に書く量が増える現象。小さな書込みが多い、空き領域が少ないなどの条件では内部の整理が増える場合がある。書込み量と寿命、性能を考える際に重要である。</p>
+<p><strong>TRIM</strong>は、OSが「この領域のデータはもう不要」とSSDへ知らせる仕組み。SSDは将来の整理に利用できる。ただしTRIMを使えば常に速くなるわけではなく、OS・ファイルシステム・接続経路・装置の対応に依存する。</p>
+<h2>5. SATA・SAS・NVMe・PCIeの関係</h2>
+<figure><img src="../assets/lesson013/interfaces.svg" alt="保存方式と接続規格、コマンド方式の関係"><figcaption>保存方式と接続規格、コマンド方式の関係</figcaption></figure>
+<p><strong>SATA（Serial ATA）</strong>は保存装置を接続する規格の一つで、HDDやSATA SSDに使われる。<strong>SAS（Serial Attached SCSI）</strong>はサーバ向けでよく使われる接続規格で、構成によって複数経路や業務向け機能を備える。<strong>NVMe（Non-Volatile Memory Express）</strong>は不揮発性メモリを高速に扱うためのコマンド・通信の仕組みで、典型的にはPCIe上で使われる。</p>
+<p>ここで区別することは3つ。</p>
+<ul>
+<li>HDDかSSDか：<strong>データを記憶する内部方式</strong>。</li>
+<li>SATA・SAS・PCIe：<strong>装置との接続経路・通信規格</strong>。</li>
+<li>NVMe：<strong>SSDなどに命令を伝える仕組み</strong>。典型的なNVMe SSDはPCIe経由で接続するが、NVMe over Fabricsのようにネットワーク越しで使う方式もある。</li>
+</ul>
+<p>したがって「SSD＝NVMe」ではない。SATA SSDもある。「NVMe＝必ずM.2」でもない。<strong>M.2</strong>は基板やコネクタの形状に関する規格で、形が似ていても対応する通信方式は製品ごとに違う。</p>
+<p>NVMeは複数のI/O要求を並行して扱いやすい設計を持つ。ただし性能はSSD内部の処理能力やPCIeリンク条件にも依存する。前講のPCIe x4からx1への変化は、SSDの中身が同じでも通路の上限を下げ得る例である。</p>
+<h2>6. 読込みの正常処理：どこで時間がかかるか</h2>
+<figure><img src="../assets/lesson013/read-path.svg" alt="アプリからOS、SSDまでの読込み経路と待ち時間"><figcaption>アプリからOS、SSDまでの読込み経路と待ち時間</figcaption></figure>
+<p>①アプリがOSへ読込みを依頼する。②OSはRAMのページキャッシュを確認し、あればそれを返せる。③なければファイルシステム・装置ドライバを通じて装置へ依頼する。④SSDならコントローラがフラッシュメモリを読み、HDDならヘッド移動・回転待ち・転送を行う。⑤装置からデータがRAMへ届き、OSがアプリへ結果を渡す。</p>
+<p>前講で学んだ<strong>DMA（装置とRAMの間の転送をCPUが一つずつ運ばずに行う仕組み）</strong>や<strong>割り込み（装置が処理完了などをCPUに知らせる仕組み）</strong>もこの経路に関係する。アプリがI/O完了を待っている間、通常OSは別の仕事にCPUを使わせられる。</p>
+<p>読み出しが遅いとき、装置内部だけでなく、OSの待ち行列、PCIe経路、DBが発行した読込み件数なども確認する必要がある。</p>
+<h2>7. 性能指標を三つに分ける</h2>
+<p><strong>IOPS（Input/Output Operations Per Second）</strong>は一秒間に完了するI/Oの回数。<strong>帯域幅</strong>は一秒間に運ぶデータ量（MB/sなど）。<strong>レイテンシ</strong>は一件の要求が完了するまでの時間（msなど）。</p>
+<table><thead>
+<tr><th>処理の例</th><th>一件の大きさ</th><th>完了回数</th><th>概算転送量</th><th>重視する観点</th></tr>
+</thead><tbody>
+<tr><td>DBの小さな読込み</td><td>4KiB</td><td>10,000 IOPS</td><td>約39MiB/s</td><td>IOPSと遅延</td></tr>
+<tr><td>バックアップの連続読込み</td><td>1MiB</td><td>1,000 IOPS</td><td>約1,000MiB/s</td><td>帯域幅</td></tr>
+<tr><td>利用者の単発の読込み</td><td>4KiB</td><td>1件</td><td>少量</td><td>一件の待ち時間</td></tr>
+</tbody></table>
+<p>IOPSが大きくても、一件のサイズが小さければ帯域幅は小さい。逆に大きなファイルを順番に読む処理では、IOPSより転送量の上限が重要になりやすい。</p>
+<p><strong>キュー深度</strong>は未完了のI/O依頼数。並列処理できるSSDでは一定の深さが処理量を高めるが、依頼が装置の処理能力を超えると待ち時間が増える。キューを増やすだけで利用者の応答時間が改善するとは限らない。</p>
+<h2>8. HDD・SATA SSD・NVMe SSDを比較する</h2>
+<table><thead>
+<tr><th>観点</th><th>HDD</th><th>SATA SSD</th><th>PCIe接続のNVMe SSD</th></tr>
+</thead><tbody>
+<tr><td>保存方法</td><td>回転円盤の磁気</td><td>NANDフラッシュ</td><td>多くはNANDフラッシュ</td></tr>
+<tr><td>小さなランダム読込み</td><td>機械的な待ちが大きい</td><td>一般に速い</td><td>並列処理に強い製品が多い</td></tr>
+<tr><td>連続転送</td><td>回転速度等で制限</td><td>SATA接続等で制限</td><td>PCIe世代・レーン等に依存</td></tr>
+<tr><td>主な注意</td><td>振動、機械故障</td><td>書込み耐久、GC</td><td>発熱、PCIe条件、耐久</td></tr>
+<tr><td>選定例</td><td>容量重視の保存</td><td>一般的なOS・業務</td><td>高並列のDB・仮想化</td></tr>
+</tbody></table>
+<p>これは傾向であり、個別製品の保証ではない。安価なNVMe SSDが、耐久性や安定した書込み性能で業務向けSATA SSDを必ず上回るわけではない。</p>
+<h2>9. SSDの書込み耐久性と温度</h2>
+<p><strong>TBW（Terabytes Written）</strong>は製品が想定する累積書込み量を示す指標、<strong>DWPD（Drive Writes Per Day）</strong>は保証条件などで想定される、一日に装置全体を書き換える回数の目安。メーカーの定義・保証期間と合わせて読む。</p>
+<p>例：容量1TB、DWPD 1、保証期間5年という条件なら、概算の想定書込み量は1TB×1回/日×365日×5年＝1,825TB。これは説明用の計算で、製品の保証条件を表すものではない。TBWやDWPDに達した瞬間に必ず故障するという意味でもない。</p>
+<p><strong>サーマルスロットリング</strong>は、装置が高温になりすぎないよう性能を意図的に下げる制御。長時間の連続書込みで速度が落ちた場合、温度・消費電力・内部キャッシュの状態も確認する。PCIeの帯域幅だけでは説明できない。</p>
+<p>業務用SSDでは、電源断時に内部に残った書込みデータを保護する<strong>電源断保護（PLP）</strong>を備える製品がある。ただし保護範囲は製品によって異なる。DB用途では性能だけでなく、電源断時のデータ保護や書込み保証を仕様書で確認する。</p>
+<h2>10. HDDとSSDの故障兆候</h2>
+<p><strong>SMART（Self-Monitoring, Analysis and Reporting Technology）</strong>は、装置が自分の状態を記録・報告する仕組み。HDDでは代替処理されたセクタ（データを保存する区画）、読取りエラー、温度など、SSDでは寿命目安、書込み量、エラー、温度などが手掛かりになる。</p>
+<p>ただし、SMARTの数値の意味は装置・メーカーで異なる。正常表示でも突然故障する場合があり、異常表示でも即時停止とは限らない。<strong>監視値とエラーログ、業務影響、冗長状態、バックアップの有無を組み合わせる</strong>。</p>
+<p>NVMe SSDでは<strong>NVMe SMART / Health Information</strong>などの情報から、温度、使用率目安、重大警告、メディア・データ整合性エラーなどを確認できる場合がある。項目名や値の意味は装置とツールの版に依存する。</p>
+<h2>11. Linuxで何を確認するか</h2>
+<p>以下はLinuxの代表的なコマンド例。<strong>未実行</strong>であり、環境に応じて権限やツール導入が必要。</p>
+<pre><code>
+lsblk -o NAME,TYPE,SIZE,MODEL,TRAN
+
+iostat -xz 1
+
+sudo smartctl -a /dev/sda
+
+sudo nvme smart-log /dev/nvme0
+
+journalctl -k --since "1 hour ago"
+
+</code></pre>
+<p><code>lsblk</code>は装置の一覧、<code>iostat</code>はI/Oの回数・転送量・待ち時間、<code>smartctl</code>は対応装置の健全性情報、<code>nvme smart-log</code>は対応NVMe装置の健全性情報、<code>journalctl -k</code>はOSのカーネル（装置を管理するOSの中心部分）のログを確認するために使う。</p>
+<pre><code>
+# 架空のiostat例
+
+time  device   r/s   r_await(ms)  aqu-sz  %util
+
+10:00 nvme0n1  180       1.5       0.4     35
+
+10:20 nvme0n1  900      26.0      14.0     97
+
+</code></pre>
+<p>10:20は読込み件数、平均完了時間、未完了I/O数が同時に増えている。<strong>読み取れる事実</strong>は「依頼が増え、完了に時間がかかっている」こと。<strong>まだ分からないこと</strong>は、SQLの読込み増加、別ジョブとの競合、SSDの温度制御、装置・経路の異常のどれが主因かである。</p>
+<p><code>%util</code>が97%でも、NVMe装置の能力が限界に達したと単独で断定しない。業務の応答時間と、装置の遅延・処理量・エラーを合わせて判断する。</p>
+<h2>12. 障害例A：DBが遅くなった</h2>
+<pre><code>
+時刻   API p95   DB読込み待ちp95   ディスクr_await   読込み件数/秒
+
+14:00   200ms         120ms              2ms            200
+
+14:15  2400ms        2100ms             30ms           1500
+
+</code></pre>
+<p>①業務影響：API応答が悪化。②DB側の待ち時間が増加。③ディスクの読込み件数と完了時間も増加。ここから、DBのI/Oが遅延に関係している可能性が高い。</p>
+<p>次にSQLごとの読込み件数、実行計画（DBがデータを探す手順）、バッチ起動履歴、ディスクエラー、温度を照合する。SQLが大量に読み始めたならSQLや索引の見直しが候補。装置エラーが出ているなら機器・経路調査が優先。<strong>この数値だけでSSD故障とは断定しない</strong>。</p>
+<h2>13. 障害例B：バックアップ速度が落ちた</h2>
+<pre><code>
+保存元SSD読込み   900 MB/s
+
+ネットワーク転送   110 MB/s
+
+保存先書込み       105 MB/s
+
+バックアップ実効   100 MB/s
+
+</code></pre>
+<p>保存元が900MB/s読めても、通信や保存先が約100MB/sなら全体の速度はそこに制限される。<strong>ボトルネック</strong>とは、全体の処理速度を制限している部分である。</p>
+<p>NetBackupでバックアップが遅いときは、保存元、ネットワーク、メディアサーバ、保存先ディスクやLTOの各区間を測る。LTOではデータの供給が途切れるとテープの動作効率が落ちる場合がある。SSDだけを高性能品へ交換しても改善しないことがある。</p>
+<h2>14. 障害例C：SSDの書込みが時間とともに遅くなる</h2>
+<pre><code>
+開始5分  書込み 1800 MB/s  温度 48℃
+
+開始40分 書込み  650 MB/s  温度 78℃
+
+エラーログ：新規エラーなし
+
+</code></pre>
+<p>長時間の連続書込みで温度が上昇し速度が低下している。まず温度による制御、内部キャッシュの使い切り、空き領域、書込み量の影響を調べる。エラーがないから正常と決めつけず、逆に速度低下だけで故障と断定もしない。</p>
+<p>対策候補は冷却改善、書込み負荷の平準化、継続書込み性能に余裕のある製品選定など。温度閾値や適正な冷却条件はメーカー仕様で確認する。</p>
+<h2>15. RAIDとバックアップを混同しない</h2>
+<p><strong>RAID（Redundant Array of Independent Disks）</strong>は、複数のディスクを組み合わせ、性能や故障への耐性を高める構成方式である。</p>
+<ul>
+<li>RAID 0：データを複数台へ分散して性能や容量を活用するが、ディスク故障への冗長性はない。</li>
+<li>RAID 1：同じデータを複数台に複製し、一定のディスク故障に耐える。</li>
+<li>RAID 5：分散したデータと復元用情報を使い、一般的な構成では1台のディスク故障に耐える。</li>
+<li>RAID 6：復元用情報を増やし、一般的な構成では2台のディスク故障に耐える。</li>
+</ul>
+<p>ただし、RAIDは誤削除、ランサムウェア、火災、論理的なデータ破損への万能な対策ではない。<strong>バックアップ</strong>は、元のデータが失われても別の保存先や世代から復元できるようにする仕組み。RAIDとバックアップは目的が異なる。</p>
+<p>RAID構成中に一台が故障し、交換後にデータを再構成する作業を<strong>リビルド</strong>という。リビルド中はI/O負荷や故障リスクが変化するため、交換手順、残りの冗長性、業務影響を確認する。</p>
+<h2>16. 設計判断：用途に合わせて選ぶ</h2>
+<table><thead>
+<tr><th>用途</th><th>優先する指標</th><th>設計時の注意</th></tr>
+</thead><tbody>
+<tr><td>Oracle DBの小さなランダム読込み</td><td>遅延、IOPS、持続性能</td><td>書込み耐久、電源断保護、冗長性</td></tr>
+<tr><td>大容量バックアップ</td><td>帯域幅、容量、復元時間</td><td>保存先とネットワークの経路全体</td></tr>
+<tr><td>OS・一般業務</td><td>応答時間、費用、容量</td><td>実際の負荷と保守性</td></tr>
+<tr><td>大量のログ書込み</td><td>持続書込み性能、耐久性</td><td>温度、空き領域、書込み増幅</td></tr>
+<tr><td>長期保管</td><td>容量単価、保管条件</td><td>別媒体・別拠点、定期復元試験</td></tr>
+</tbody></table>
+<p>選定の順番は①業務の目標（何秒以内、何時間以内）②I/Oの種類（小さいか大きいか、読込みか書込みか）③必要な性能④障害時の継続性⑤費用・保守。スペック表の最大転送速度だけで決めない。</p>
+<h2>17. Oracle・JP1・NetBackupと自宅実習</h2>
+<p>Oracleでは、SQLの物理読込み、待機イベント、DBキャッシュの効き方を確認し、ストレージが原因かSQLが原因かを切り分ける。JP1/AJSで夜間バッチが重なると、同じストレージへのI/O集中が発生し得るため、開始時刻と同時実行数の調整も対策となる。</p>
+<p>NetBackupではバックアップ元から保存先までの経路を調べ、容量、速度、復元可能性を分けて評価する。ShadowImageのようなストレージ内コピーはデータ保護の一要素だが、別の障害領域へ保管するバックアップや復元試験とは役割が異なる。</p>
+<p>自宅のNginx→FastAPI→PostgreSQLのDocker構成では、APIの応答時間、DB問い合わせ時間、ホスト側のI/Oを同じ時刻で記録する。ただしMac上のDockerは仮想化を利用するため、Linuxコンテナから見える装置統計とmacOSの実SSD統計が一致しないことがある。破壊的な書込み試験や障害注入は、バックアップ済みの検証環境だけで実施する。</p>
+<h2>18. まとめ</h2>
+<p>HDDは円盤・ヘッドの移動があり、ランダムアクセスで機械的な待ちが生じる。SSDはフラッシュメモリとコントローラで処理し、機械的なシークは不要だが、書込みの整理、耐久性、温度に注意する。</p>
+<p>NVMeは保存方式そのものではなく、SSDなどへ命令を伝える仕組み。PCIeは主にその通信経路。性能はIOPS、帯域幅、レイテンシを業務の処理内容と組み合わせて評価する。故障調査ではSMARTなどの健全性情報、OSログ、業務影響、構成変更を照合し、数値一つで断定しない。</p>
+<p>次講：第14講「物理サーバの構成・ラック・電源・冷却」。理解度チェックは別掲の実務判断型四択10問・15点満点。回答前に正解を示さない。</p></article><nav><a href="012.html">前講：第12講</a> ｜ <a href="../index.html">講義一覧</a> ｜ 次講：第14講（未公開）</nav></main></body></html>
