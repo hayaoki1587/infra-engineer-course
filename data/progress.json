@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 12,
+  "completed_count": 13,
   "lessons": [
     {
       "number": 1,
@@ -340,10 +340,32 @@
     },
     {
       "number": 13,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-23",
+          "answers": [
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "実務判断型四択10問全問正解。HDD/SSDのランダムI/O、SATA/NVMe/PCIe、GC/書込み増幅、SMARTの限界、IOPSと帯域幅、DB読込み遅延、バックアップ経路、SSDの温度・持続性能、RAID5障害、Oracle DB向け装置選定を適切に判断。四択で確認された弱点なし。実機調査・記述式の作業計画は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：RAID 5の1台故障時に業務継続・バックアップ確認・交換・リビルド・監視を含む対応計画を記述する"
+      ]
     },
     {
       "number": 14,
