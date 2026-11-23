@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 13,
+  "completed_count": 14,
   "lessons": [
     {
       "number": 1,
@@ -369,10 +369,32 @@
     },
     {
       "number": 14,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-23",
+          "answers": [
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "実務判断型四択10問全問正解。PDU共通障害、ラック設置、UPSのW/VAと稼働時間、吸気温度、BMC、PSU片系障害、UPS停電時の安全停止、ラック共通冷却障害、N+1の共通依存、Oracle RACの障害領域を正しく判断。四択で確認された弱点なし。設備図読解と実地の作業計画は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：PSU片系故障中にUPS停電警報が発生した場合のログ確認、影響評価、安全停止、保守連絡を含む対応計画"
+      ]
     },
     {
       "number": 15,
