@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 14,
+  "completed_count": 15,
   "lessons": [
     {
       "number": 1,
@@ -398,10 +398,32 @@
     },
     {
       "number": 15,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-24",
+          "answers": [
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第15講理解度チェック：四択10問全問正解。POST・UEFI・ESP・BootOrder・Secure Boot・initramfs・OSサービスの段階別切り分け、ファームウェア更新時の事前計画、RTOを適切に判断。全40選択肢の適用条件と不適切な理由を解説。明確な弱点なし。実機ログ読解と復旧作業の安全性は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：ファームウェア更新後、UEFIはSSDを認識するがOSが起動しない場合のBootOrder・ESP・Secure Boot・ストレージ動作モードの調査順序と変更中断判断"
+      ]
     },
     {
       "number": 16,
