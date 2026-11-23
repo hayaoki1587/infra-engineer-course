@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 11,
+  "completed_count": 12,
   "lessons": [
     {
       "number": 1,
@@ -311,10 +311,32 @@
     },
     {
       "number": 12,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-23",
+          "answers": [
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "実務判断型10問すべて正解。DMAとCPU、ページキャッシュ、I/O待ち時のCPU解放、NIC割り込み、PCIeレーン、DBとディスクI/Oの相関、NVMe %utilの限界、バックアップ経路、PCIeリンク低下、JP1ジョブ競合を適切に判断。四択では弱点なし。実ログ調査・実機診断は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：iostatのr_await・aqu-sz・%utilをDB待機情報と照合し、要求量増加と装置側遅延を切り分ける"
+      ]
     },
     {
       "number": 13,
