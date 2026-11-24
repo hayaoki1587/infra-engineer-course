@@ -1,0 +1,119 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第18講｜実務演習：サーバ構成とリソース不足を分析する</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.85}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="017.html">前講：第17講</a> ｜ 第18講 / 全224講 ｜ 次講：第19講（未公開）</nav><article><h1>第18講 実務演習：サーバ構成とリソース不足を分析する</h1>
+<h2>1. 目的と参照資料</h2>
+<p>本講は第2編の総合演習。CPU・メモリ・I/O・電源・RAID・NICの知識を組み合わせ、①構成の単一障害点、②監視値からの原因仮説、③安全な初動、④対策の副作用と復旧検証を説明できるようにする。A必須：構成・業務影響・時系列・資源・冗長性。B補助：p95、ロード、スワップ、RAID縮退。C発展：RTO/RPO、複合障害。すべて架空の企業システムであり実機操作は行っていない。</p>
+<p>確認資料：Linux Kernel Documentation「PSI - Pressure Stall Information」（https://www.kernel.org/doc/html/latest/accounting/psi.html、本文確認）。CPU・メモリ・I/O資源不足による待ち時間と/proc/pressure/の形式を確認。Red Hat Enterprise Linux 10公式ドキュメント（https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/、目次確認）を参照したがvmstat・iostatの個別節原文は今回未照合。Oracle RAC・JP1/AJS・NetBackupの製品固有操作も未照合。</p>
+<h2>2. 架空受注システムの構成</h2>
+<p>利用者→LB（ロードバランサ：要求を複数サーバへ振り分ける装置）→Web→AP→DBの順に処理する。注文をDBへ登録できて初めて受注成功。日次バッチはDBの集計表を更新し、バックアップも同じストレージを読む。</p>
+<figure><img src="../assets/lesson018/system-topology.svg" alt="受注システムの構成と単一障害点"><figcaption>受注システムの構成と単一障害点</figcaption></figure>
+<p>図の青い箱はWeb/AP、橙は単一DB、赤は共通設備。矢印は通信・給電・ストレージへの依存を表す。Web/APは2台ずつだがDBは1台。DBのディスクはRAID5、PSU（電源ユニット）は2台で同じPDU（電源分配装置）に接続。NIC（ネットワーク接続部品）2枚も同じスイッチへ接続している。PDUやスイッチが故障すると二重化した部品が同時に機能を失う。これを単一障害点（SPOF）という。</p>
+<h2>3. 正常時の性能基準とSLO</h2>
+<p>SLO（サービス水準目標）は運用で守りたい性能の目標。このシステムの受注APIはp95（95%程度の要求が収まる応答時間）800ms以下、エラー率1%未満を目標とする。</p>
+<table><thead>
+<tr><th>指標</th><th>正常値（架空）</th><th>意味</th></tr>
+</thead><tbody>
+<tr><td>API p95</td><td>180ms</td><td>利用者の応答時間</td></tr>
+<tr><td>APIエラー率</td><td>0.1%</td><td>失敗した要求の割合</td></tr>
+<tr><td>DB CPU</td><td>25%</td><td>CPUが働いた時間の割合</td></tr>
+<tr><td>メモリavailable</td><td>10GiB</td><td>新しい処理に回せるメモリの目安</td></tr>
+<tr><td>vmstat si/so</td><td>0/0</td><td>スワップの読み戻し／退避</td></tr>
+<tr><td>ディスクawait</td><td>3ms</td><td>I/O要求の平均応答時間</td></tr>
+<tr><td>ディスクaqu-sz</td><td>1</td><td>平均I/Oキュー長の目安</td></tr>
+</tbody></table>
+<p>p95とエラー率は業務側の症状、CPU・メモリ・I/Oは原因候補を探す手掛かり。単一の閾値だけで原因を断定しない。</p>
+<h2>4. 事象A：夜間バッチ後にAPIが遅い</h2>
+<p>22:00にJP1/AJSの集計バッチ開始。22:05に受注画面が遅いという問い合わせが発生した。次は同じ監視期間で採取した架空値。</p>
+<table><thead>
+<tr><th>時刻</th><th>API p95</th><th>DB CPU</th><th>available</th><th>si/so</th><th>await</th><th>aqu-sz</th></tr>
+</thead><tbody>
+<tr><td>21:55</td><td>180ms</td><td>25%</td><td>10GiB</td><td>0/0</td><td>3ms</td><td>1</td></tr>
+<tr><td>22:05</td><td>1.8秒</td><td>28%</td><td>2GiB</td><td>220/160</td><td>24ms</td><td>16</td></tr>
+<tr><td>22:15</td><td>3.4秒</td><td>22%</td><td>0.5GiB</td><td>980/760</td><td>48ms</td><td>38</td></tr>
+<tr><td>22:35</td><td>250ms</td><td>26%</td><td>8GiB</td><td>0/0</td><td>5ms</td><td>2</td></tr>
+</tbody></table>
+<p>観測できる事実：APIの遅い時間帯にavailableが減り、si/so（メモリ内容のスワップ入出力）とディスク待ちが増えた。CPU使用率は高くない。仮説：バッチでメモリが圧迫され、スワップI/Oが増えてDBのI/OとAPIを遅くした。ただしバッチ自体の大量ディスク読み込みやDBロック待ちも考えられる。開始時刻が一致しただけでは原因を確定できない。</p>
+<h2>5. 障害切り分けの順序</h2>
+<figure><img src="../assets/lesson018/triage-flow.svg" alt="業務遅延から原因仮説へ進む調査手順"><figcaption>業務遅延から原因仮説へ進む調査手順</figcaption></figure>
+<p>図は上から下への調査順。まずAPI p95とエラー率で業務影響を把握し、CPU実行待ちとメモリ・I/O待ちを比較する。CPUが低くてもavailable低下、si/so増加、await増加があればメモリ・I/Oを優先する。最後にSQL、プロセス、ジョブの記録を照合して対策し、業務の復旧を確認する。矢印は調査の順序であり因果の証明ではない。</p>
+<h2>6. ログの事実と推測を分離する</h2>
+<pre><code>
+22:00:00 JP1  GROUP_SALES_AGG started
+
+22:04:50 OS   MemAvailable: 2097152 kB
+
+22:05:00 VM   si=220 so=160 wa=36
+
+22:05:02 DISK nvme0n1 await=24.0ms aqu-sz=16
+
+22:05:05 API  POST /api/orders p95=1800ms
+
+22:15:02 DISK nvme0n1 await=48.0ms aqu-sz=38
+
+22:35:00 JP1  GROUP_SALES_AGG ended
+
+</code></pre>
+<p>startedは開始、MemAvailableは利用可能メモリの推定値、si/soはスワップI/O、waはCPUのI/O待ち時間割合、awaitはI/O要求の平均応答時間、aqu-szは平均キュー長。これは説明用の架空ログであり実製品の厳密な書式を再現していない。監視サーバと対象サーバの時計がずれていると時系列を誤読するため時刻同期も確認する。</p>
+<h2>7. 事象Aの安全な初動</h2>
+<p>第一に受注APIのエラー率と注文登録の成否を確認する。遅延だけなのか受注失敗・重複登録があるのかで緊急度が異なる。第二にバッチを停止する前に、停止・再実行の条件を確認する。JP1/AJSジョブがDBを途中まで更新していた場合、再実行で重複登録する危険がある。冪等性（べきとうせい）は同じ処理を繰り返しても結果が変わらない性質。</p>
+<p>第三にプロセス別メモリ、仮想マシン・コンテナの制限、SQLの待機、バックアップとの時間重複を確認。暫定策は承認を得たバッチ同時実行数の抑制や時間帯分離。恒久策はSQL改善、省メモリ化、必要なメモリ・ストレージ能力の再設計。スワップを無効にするだけではOOM（メモリ不足による強制終了）を招く場合がある。</p>
+<h2>8. 事象B：RAID5のディスク1台故障</h2>
+<p>23:10、DBのRAIDコントローラーから架空ログ「Virtual Disk Degraded」「Physical Disk 2 Failed」。DBとAPIは稼働中。Degradedは冗長性が失われた縮退状態。RAID5は通常1台故障に耐えるが、追加故障でデータ喪失の危険がある。まず故障スロット・シリアル、残るディスクのエラー、直近バックアップと復元可能性、業務負荷、交換手順を確認する。</p>
+<p>ホットスワップ（稼働中の部品交換）対応でも正常ディスクを誤って抜くと重大障害になる。交換後はリビルド（冗長データの再構築）完了、性能、エラーを確認する。RAIDは誤削除を戻す仕組みではないためバックアップが必要。</p>
+<h2>9. 事象C：電源片系故障と共通PDU</h2>
+<p>翌朝BMC（OSとは独立してハードウェアを監視する機能）が「PSU1 Input Lost」を通知。PSU2で業務継続しているが片系運転であり正常ではない。さらにPSU1/2が同じPDUに接続され、PDU停止で両方が停止する。PSU2の供給能力、PSU1の入力喪失箇所（PSU・ケーブル・PDU）、上流UPS（停電時の給電装置）の共通性、保守手順を確認する。試験目的でPSU2を抜かない。</p>
+<p>改善策は可能ならA/B独立給電。ただしPDUを分けても上流UPSが共通なら単一障害点が残る。</p>
+<h2>10. 事象D：NICが2枚でも通信停止</h2>
+<p>DBのNIC-A/Bは同じスイッチへ接続。片方のケーブル断には適切なボンディング（複数NICを論理的に扱う仕組み）で耐える場合があるが、スイッチ全体が停止すると両経路が失われる。別スイッチと上流経路の分離、VLAN、切替モードを確認する。フェイルオーバーは障害時に正常な経路へ切り替えること。2本挿すだけでは自動切替は保証されない。</p>
+<p>架空ログ「eth0 link down」「bond0 active slave changed」があっても業務が利用可能とは限らない。疎通だけでなくAPI応答とDB接続まで確認する。</p>
+<h2>11. 複合障害：RAID縮退とPSU片系が同時発生</h2>
+<p>ここが本講の設計判断の核心。RAID5縮退とPSU片系故障が同時に存在してもAPIは正常かもしれない。しかし次の故障への耐性が別々に失われている。いきなり再起動・ディスク抜去・電源抜去をすると停止リスクが増える。</p>
+<p>まず業務影響、バックアップの新しさ・復元試験記録、PSU2の安定性、RAID残存ディスクの状態を確認。保守員の交換部品と作業手順、承認された停止可否を確認する。どちらを先に交換するかは残る故障リスク、給電安定性、リビルド負荷、停止可否で判断するため一律には決められない。RTO（業務復旧までの目標時間）とRPO（復元可能なデータ時点の目標）も考慮する。</p>
+<h2>12. 構成改善の比較</h2>
+<table><thead>
+<tr><th>対象</th><th>現状</th><th>改善候補</th><th>注意点</th></tr>
+</thead><tbody>
+<tr><td>DB</td><td>単一ノード</td><td>DB冗長化</td><td>データ整合性・共有障害</td></tr>
+<tr><td>電源</td><td>PSU2台・共通PDU</td><td>A/B独立給電</td><td>上流UPS・受電設備</td></tr>
+<tr><td>NIC</td><td>2枚・同一スイッチ</td><td>別スイッチと経路分離</td><td>VLAN・切替設定</td></tr>
+<tr><td>ディスク</td><td>RAID5</td><td>容量と耐障害性から再選定</td><td>RAID6等でもバックアップ必須</td></tr>
+<tr><td>バッチ</td><td>受注と同じDBで集計</td><td>時刻分離・並列数制限</td><td>業務締切と処理時間</td></tr>
+<tr><td>バックアップ</td><td>バッチと時間帯が重なる</td><td>時刻・転送経路を見直す</td><td>RPO・復旧試験</td></tr>
+</tbody></table>
+<p>機器を増やすだけでなく、同じ障害で同時停止する範囲（故障ドメイン）を減らす。二重化には費用・運用複雑性もあるため業務要件で選ぶ。</p>
+<h2>13. 変更管理と復旧判定</h2>
+<p>記録は①発生時刻、②業務影響、③観測事実、④仮説、⑤追加確認、⑥承認・変更、⑦復旧判定の順に残す。例えば「22:15 API p95 3.4秒、DB await 48ms、si/so継続。バッチと時間的に一致。原因は未確定。SQL待機とプロセス別メモリを追加確認」と書く。</p>
+<p>変更前に切戻し条件を決める。交換後は警報が消えただけでは復旧完了とせず、RAIDリビルド完了、PSU両系給電、NIC経路、API p95・エラー率、注文DB整合性を確認する。</p>
+<h2>14. Linuxでの読み取りコマンド</h2>
+<pre><code>
+uptime
+
+free -h
+
+vmstat 1 5
+
+iostat -xz 1 5
+
+cat /proc/pressure/memory
+
+ip -s link
+
+journalctl -k -p warning --no-pager
+
+</code></pre>
+<p>uptimeはロード、freeはメモリ、vmstatは実行待ち・スワップ・CPU、iostatはI/O、/proc/pressure/memoryはメモリ圧迫による待ち、ipはNIC統計、journalctlはカーネル警告。一般的なLinuxでの読み取り例で未実行。iostatにはsysstat導入が必要な場合がある。初回のvmstat/iostat行は起動以来の統計を含む場合があるため後続サンプルを読む。表示できないときは権限・導入状況・ログ収集設定を調べる。</p>
+<h2>15. Oracle・JP1・NetBackupとの関係</h2>
+<p>Oracle DBではSQL実行時間・待機イベント・メモリ・ストレージI/Oを照合。CPUが低くてもDBロックやI/O待ちで遅くなる。JP1/AJSではジョブの開始・終了、異常終了、同時実行数、再実行の重複影響を確認。NetBackupではバックアップの読込がDBのI/Oと競合し得るため、時間帯・転送経路・保存先も調べる。製品固有の操作方法と保証仕様は今回未照合。</p>
+<h2>16. 自宅Dockerラボでの安全な実習</h2>
+<p>MacのDockerでNginx→FastAPI→PostgreSQLを分離してもMacのSSD・電源・メモリは共通。docker statsでコンテナ別CPU・メモリ・I/Oの目安を読み、/api/healthのlive/readyとAPI応答を照合する。Docker Desktopの仮想化基盤があるためコンテナ値をMac本体の物理資源と同一視しない。</p>
+<pre><code>
+docker compose ps
+
+docker stats --no-stream
+
+</code></pre>
+<p>コマンドは未実行。構成図で単一障害点を探し、既存ログを読む演習は安全。物理ディスク抜去・電源断・無制限の負荷試験は行わない。</p>
+<h2>17. 障害分析答案の型</h2>
+<p>事実→仮説→確認→暫定対策→恒久対策→検証の6段階で書く。例：「22:15 API p95が3.4秒、availableが0.5GiB、si/soが継続、awaitが48ms（事実）。バッチと受注のメモリ・I/O競合を疑う（仮説）。ジョブ履歴、SQL待機、プロセス別メモリを照合（確認）。承認の上で同時実行数を抑制（暫定）。SQL・メモリ容量・時間帯を見直す（恒久）。p95、エラー率、si/so、awaitを再比較（検証）。」</p>
+<p>「メモリ不足なので増設」だけでは原因が未確定で副作用も不明。判断根拠と代替案を記載する。</p>
+<h2>18. まとめと次講</h2>
+<p>結論は三つ。①業務遅延はCPUだけでなくメモリ圧迫・I/O・ロック・ネットワークを同時刻で比較。②RAID・PSU・NICが二重化されても共通PDU・共通スイッチ・単一DBは単一障害点。③安全な障害対応は業務影響→事実→仮説→追加確認→承認された変更→業務復旧検証で進める。</p>
+<p>次講は第19講「OSの役割・カーネル・ユーザー空間」。理解度チェックは四択10問・15点満点。回答前に正解を示さない。</p></article><nav><a href="017.html">前講：第17講</a> ｜ <a href="../index.html">講義一覧</a> ｜ 次講：第19講（未公開）</nav></main></body></html>
