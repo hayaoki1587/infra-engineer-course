@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 17,
+  "completed_count": 18,
   "lessons": [
     {
       "number": 1,
@@ -485,10 +485,32 @@
     },
     {
       "number": 18,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-24",
+          "answers": [
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第18講理解度チェック：四択10問全問正解。共通PDU・スイッチの単一障害点、CPU低使用率とメモリ圧迫・I/O待ち、時系列相関と因果、RAID5縮退、複合障害時のリスク評価、バッチ再実行の冪等性、変更の副作用、リビルド後の業務復旧判定を適切に判断。全40選択肢の適用条件と不適切な理由を解説。四択で明確な弱点なし。実機ログ読解と障害手順書の記述実技は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：RAID5縮退とPSU片系故障が同時発生した場合の障害対応手順書を作成し、調査順序・作業中止条件・復旧完了条件を記述する"
+      ]
     },
     {
       "number": 19,
