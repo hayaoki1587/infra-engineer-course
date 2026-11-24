@@ -56,9 +56,11 @@
 <h2>6. API・ライブラリ・システムコール</h2>
 <p>前節で登場したシステムコールを、普段聞く「API」と区別します。<strong>どの層の機能を呼び出すか</strong>を意識すると混乱しません。</p>
 <p><strong>APIは「機能を呼び出す約束」の総称です。</strong></p>
-<p>- <strong>ライブラリ</strong>：便利な関数をまとめた部品。内部でシステムコールを使う場合も、使わない場合もあります。</p>
-<p>- <strong>システムコール</strong>：カーネルの機能に入るための呼び出し。</p>
-<p>- <strong>Web API</strong>：アプリ同士がHTTPなどで機能を呼び出す約束。</p>
+<ul>
+<li><strong>ライブラリ</strong>：便利な関数をまとめた部品。内部でシステムコールを使う場合も、使わない場合もあります。</li>
+<li><strong>システムコール</strong>：カーネルの機能に入るための呼び出し。</li>
+<li><strong>Web API</strong>：アプリ同士がHTTPなどで機能を呼び出す約束。</li>
+</ul>
 <p>たとえばPythonのopen()は言語APIで、内部でLinuxのopenat()などを利用する場合があります。しかし両者は同一ではありません。</p>
 <p>また、ブラウザから呼ぶ /api/orders はWeb APIです。カーネルに直接依頼するシステムコールとは階層が違います。</p>
 <p><strong>区別のポイントは「誰が誰の機能を利用するか」です。</strong></p>
@@ -148,12 +150,20 @@ ls -l /etc/passwd
 <p>前節のコマンドに出てきた /proc/1/status を、別のプロセスを例にもう少し詳しく読みます。</p>
 <p><strong>ここでは各項目が何を表し、何をまだ断定できないかを確認します。</strong></p>
 <p>以下は架空の出力です。</p>
-<p>Name:   postgres</p>
-<p>State:  S (sleeping)</p>
-<p>Pid:    3142</p>
-<p>PPid:   1</p>
-<p>VmRSS:  204800 kB</p>
-<p>Threads: 5</p>
+<pre><code>
+Name:   postgres
+
+State:  S (sleeping)
+
+Pid:    3142
+
+PPid:   1
+
+VmRSS:  204800 kB
+
+Threads: 5
+
+</code></pre>
 <pre><code>
 
 
