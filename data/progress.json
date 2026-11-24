@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 19,
+  "completed_count": 20,
   "lessons": [
     {
       "number": 1,
@@ -543,10 +543,32 @@
     },
     {
       "number": 20,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-25",
+          "answers": [
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第20講理解度チェック：四択10問全問正解。プロセス・スレッドの分離と共有、並行処理とスケジューリング、コンテキストスイッチとシステムコール、Linux D状態、CPU高負荷時の実行待ち、CPU低使用率時のI/O・DBロック待ち、ロードアベレージ、JP1バッチ競合と設計変更判断を適切に理解。全40選択肢の適用条件・不適切な理由を解説。四択で明確な弱点なし。実ログ読解・手順立案は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：JP1バッチ開始後にFastAPIのCPU94%、スレッド数24→180、p95 180→2200msとなったケースで、CPU飽和・スレッド過多・DB待機の仮説別に取得ログ・判断基準・対策・切戻し条件を記述する"
+      ]
     },
     {
       "number": 21,
