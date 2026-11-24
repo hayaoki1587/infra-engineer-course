@@ -1,0 +1,198 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第21講｜仮想メモリ・ページング・スワップ</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.9}article p{margin:0 0 1.15em}article h2{margin:2em 0 .85em}article ol,article ul{padding-left:1.5em;margin:1em 0 1.3em}article li{margin:.45em 0}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="020.html">前講：第20講</a> ｜ 第21講 / 全224講 ｜ 次講：第22講（未公開）</nav><article><h1>第21講 仮想メモリ・ページング・スワップ</h1>
+<p><strong>第3編：OS｜全224講中第21講</strong></p>
+<p><strong>参照・照合状況</strong>：Linuxの /proc/meminfo、/proc/PID/status、vmstat、cgroup v2 memory.events、Docker Desktopの一般的な仕組みに基づく説明です。今回、各公式マニュアルの該当版・ページの外部照合は未実施です。コマンド・ログは実行しておらず、ログ例は架空です。</p>
+<h2>1. 到達目標・前講とのつながり</h2>
+<p>第20講では、OSがプロセスやスレッドにCPUを割り当てる仕組みを学びました。今回は、<strong>それぞれのプロセスがメモリをどのように使い、足りなくなったとき何が起こるか</strong>を学びます。</p>
+<p>到達目標は、①仮想アドレスと物理メモリの違い、②ページングとページフォールト、③ページキャッシュとスワップ、④メモリ圧迫時のログ判断、⑤対策の設計判断です。</p>
+<p>A必須：アドレス変換、ページフォールト、スワップ。B補助：RSS、キャッシュ、監視コマンド。C発展：コンテナ制限、NUMA、巨大ページの位置づけ。</p>
+<h2>2. なぜ仮想メモリが必要なのか</h2>
+<p>NginxとPostgreSQLが同時に動く場面を考えます。両方が「メモリの100番地を使いたい」と考えても、同じ物理メモリを勝手に書き換えたら困ります。</p>
+<p><strong>仮想メモリは、プロセスごとに独立したアドレス空間を見せ、OSが実際のメモリへの対応を管理する仕組みです。</strong> これにより、プロセス間の保護やメモリ管理がしやすくなります。</p>
+<p>仮想メモリは「必ずディスクを使う」という意味ではありません。多くの処理は物理RAM上で完結します。</p>
+<h2>3. 仮想アドレスから物理アドレスへ</h2>
+<p>アプリが扱うアドレスを<strong>仮想アドレス</strong>、RAM上の実際の位置を<strong>物理アドレス</strong>と呼びます。</p>
+<p>CPUのMMU（Memory Management Unit、メモリ管理装置）は、OSが用意した<strong>ページテーブル</strong>（仮想と物理の対応表）などを使い、アドレスを変換します。TLB（Translation Lookaside Buffer）は、その変換結果を一時保存する高速な仕組みです。</p>
+<p>次の図では、プロセスAとBの同じ仮想アドレスが、別々の物理領域へ対応しています。図の矢印は「参照先への対応」であり、データのコピーを意味しません。</p>
+<figure><img src="../assets/lesson021/address-map.svg" alt="仮想アドレスと物理メモリの対応"><figcaption>仮想アドレスと物理メモリの対応</figcaption></figure>
+<p><strong>重要：アプリが仮想アドレスを使うたびにディスクアクセスが起こるわけではありません。</strong></p>
+<h2>4. ページとは何か</h2>
+<p>メモリを細かい単位で管理するため、仮想アドレス空間を<strong>ページ</strong>に分けます。物理メモリ側の対応する単位をページフレームと呼びます。</p>
+<p>Linuxの一般的な構成では4KiBページが使われることが多いですが、CPUやOS設定により異なります。巨大ページ（huge pages）も存在します。</p>
+<p>例えば4KiBページなら、連続した8KiBの領域は少なくとも二つのページにまたがります。ただし、仮想的に連続していても物理RAM上で連続している必要はありません。</p>
+<h2>5. 正常時のメモリアクセス</h2>
+<p>まず、必要なページが物理メモリに存在する正常例を追います。</p>
+<ol>
+<li>FastAPIの処理が変数を読み取ろうとします。</li>
+<li>CPUが仮想アドレスを使ってメモリ参照します。</li>
+<li>MMUがページテーブル等を参照し、物理アドレスを求めます。</li>
+<li>RAMから必要なデータが読み出され、処理が続きます。</li>
+</ol>
+<p>この流れで必要な対応が既に利用できれば、ページフォールトは発生しません。TLBに変換結果がない<strong>TLBミス</strong>は、ページフォールトと同義ではありません。</p>
+<h2>6. ページフォールトとは何か</h2>
+<p>ここで「ページがまだ使える状態になっていない」場合を考えます。<strong>ページフォールトは、CPUのメモリ参照をOSが追加処理する必要が生じたときの例外</strong>です。</p>
+<p>OSが新しい物理ページを割り当てたり、ファイルから必要なデータを読み込んだりします。アクセス権違反などで処理を継続できない場合もあります。</p>
+<p><strong>ページフォールト＝障害、ではありません。</strong> 新しいメモリ領域を初めて使うときなど、正常な処理でも発生します。</p>
+<h2>7. マイナーフォールトとメジャーフォールト</h2>
+<p>Linuxの監視では、ページフォールトを主に二種類に分けます。</p>
+<table><thead>
+<tr><th>種類</th><th>何が必要か</th><th>性能への意味</th></tr>
+</thead><tbody>
+<tr><td>マイナー（minor）</td><td>ディスクからのページ読み込みを必要としない処理</td><td>発生しても通常は比較的軽い</td></tr>
+<tr><td>メジャー（major）</td><td>ページをストレージから読み込む必要がある処理</td><td>I/O待ちで遅延しやすい</td></tr>
+</tbody></table>
+<p>マイナーの例は、未割当ページへの初回アクセスや、RAM上にあるページの対応付けです。メジャーの例は、ファイルに対応するページをストレージから読み込む場面です。</p>
+<p>ただしメジャーフォールトはスワップだけで発生するわけではありません。<strong>ファイル読み込みでも起こります。</strong></p>
+<h2>8. スワップとは何か</h2>
+<p>物理メモリに空きが少なくなった場合、Linuxは利用頻度の低い匿名メモリのページなどを、設定された<strong>スワップ領域</strong>へ退避することがあります。匿名メモリは、ファイルそのものに対応しないアプリの作業用メモリなどです。</p>
+<p>退避されたページが再び必要になると、スワップから読み戻します。これを<strong>swap-in</strong>と呼びます。退避は<strong>swap-out</strong>です。</p>
+<p>RAMよりストレージは一般に遅いため、swap-inが頻発するとアプリが待たされます。ただし、スワップが少量使われているだけでは性能障害とは限りません。</p>
+<h2>9. ページキャッシュとスワップの違い</h2>
+<p>ここは混同しやすい部分です。<strong>ページキャッシュはファイルの内容をRAMに保持して、次回の読み込みを速くする仕組み</strong>です。一方、スワップは匿名メモリ等をRAMから退避するための領域です。</p>
+<table><thead>
+<tr><th>比較</th><th>ページキャッシュ</th><th>スワップ</th></tr>
+</thead><tbody>
+<tr><td>主な対象</td><td>ファイルのデータ</td><td>匿名メモリなど</td></tr>
+<tr><td>主な場所</td><td>RAM</td><td>スワップ領域（ディスク等）</td></tr>
+<tr><td>目的</td><td>ファイルI/Oの効率化</td><td>RAMの空きを確保する選択肢</td></tr>
+<tr><td>メモリ不足時</td><td>再利用可能なキャッシュを回収できる</td><td>退避・再読込でI/Oが発生し得る</td></tr>
+</tbody></table>
+<p><strong>空きメモリが少なくても、回収可能なキャッシュが十分なら直ちにメモリ不足とは言えません。</strong></p>
+<h2>10. メモリ圧迫が起こる流れ</h2>
+<p>FastAPIとPostgreSQLのメモリ使用量が増えた場面を考えます。次の図は原因と結果を単純化したものです。</p>
+<figure><img src="../assets/lesson021/memory-pressure.svg" alt="メモリ圧迫とスワップの因果関係"><figcaption>メモリ圧迫とスワップの因果関係</figcaption></figure>
+<ol>
+<li>アプリが必要とするメモリが増えます。</li>
+<li>OSは回収可能なキャッシュなどを減らして空きを確保します。</li>
+<li>それでも足りなければ、スワップ退避などが増える場合があります。</li>
+<li>退避したページを頻繁に読み戻すとI/O待ちが増えます。</li>
+<li>応答時間が悪化し、場合によってはOOM（Out Of Memory、メモリ不足）によるプロセス終了が起こります。</li>
+</ol>
+<p>この流れは必ず全部発生するわけではありません。スワップ無効、コンテナ制限、メモリ回収の状況によって経路は変わります。</p>
+<h2>11. RSS・VSZ・availableを区別する</h2>
+<p>メモリ監視でまず覚えたい指標は三つです。</p>
+<p><strong>VSZ/VIRT</strong>はプロセスの仮想アドレス空間の大きさです。予約した領域なども含み、すべてがRAMを占有しているわけではありません。</p>
+<p><strong>RSS</strong>（Resident Set Size）は、プロセスに対応して現在RAM上にあるページ量の目安です。共有ページを含むため、複数プロセスのRSSを単純合算すると二重計上が起こり得ます。</p>
+<p><strong>MemAvailable</strong>はLinuxが追加のアプリ使用にどれほどメモリを使えそうか推定した値です。MemFreeより運用上の判断に役立つ場合が多いですが、あくまで推定です。</p>
+<h2>12. Linuxの確認コマンド</h2>
+<p>ここからは実務で使う読み取りコマンドです。<strong>以下はLinuxでの実行例であり、今回は実行していません。</strong></p>
+<pre><code>
+free -h
+
+cat /proc/meminfo
+
+vmstat 1 5
+
+ps -eo pid,comm,rss,vsz --sort=-rss | head
+
+cat /proc/3142/status
+
+journalctl -k --since "30 minutes ago"
+
+</code></pre>
+<p>freeのavailableは利用可能メモリの推定値、swap欄はスワップ使用状況です。vmstatのsi/soはswap-in/swap-outの量、rは実行可能タスク、bは割り込み不可待機の目安です。</p>
+<p>psのrssとvszは通常KiB単位です。/proc/3142/statusは架空PIDの例です。journalctl -kではOOMなどのカーネルログを探しますが、ログ閲覧には権限が必要な場合があります。</p>
+<h2>13. 正常な監視値の例</h2>
+<p>次は架空の8GiB RAMサーバの集約ログです。実機のコマンド出力ではありません。</p>
+<pre><code>
+10:00 MemTotal=8.0GiB MemFree=0.5GiB
+
+10:00 MemAvailable=3.2GiB Cached=2.8GiB
+
+10:00 SwapUsed=0.2GiB vmstat si=0 so=0
+
+10:00 AP p95=160ms major_faults/s=0
+
+</code></pre>
+<p>MemFreeは小さいですが、MemAvailableが3.2GiBあり、swap-in/outは観測期間中ゼロ、応答時間も正常範囲という設定です。</p>
+<p><strong>空きメモリ0.5GiBという一点だけで障害とは判断しません。</strong> ただし正常範囲は環境ごとに基準を持つ必要があります。</p>
+<h2>14. 障害例A：スワップ読み戻しで遅い</h2>
+<p>次はメモリ使用量が増え、応答が悪化した架空例です。</p>
+<pre><code>
+22:00 JP1 batch started
+
+22:05 MemAvailable=120MiB SwapUsed=3.4GiB
+
+22:05 vmstat si=24000 so=8000 (KiB/s)
+
+22:05 major_faults/s=900 AP p95=3100ms
+
+22:05 storage await=48ms
+
+</code></pre>
+<p><strong>観測事実</strong>は、利用可能メモリの減少、swap-in/outの発生、メジャーフォールト増加、ストレージ待ち、AP応答悪化です。</p>
+<p><strong>仮説</strong>は、メモリ圧迫に伴うページの退避・読み戻しが性能を落としていることです。ただし、ファイルI/OやDBの負荷も同時に確認する必要があります。</p>
+<p><strong>追加調査</strong>では、プロセス別RSS、JP1ジョブの開始時刻、DBメモリ設定、コンテナ制限、OOM履歴を照合します。</p>
+<h2>15. 障害例B：スワップなしでもOOM</h2>
+<p>前節ではスワップが使われました。しかし、スワップを無効にすれば解決するのでしょうか。答えは<strong>必ずしも解決しません</strong>。</p>
+<pre><code>
+22:10 container memory.max=1073741824
+
+22:10 container memory.current=1068000000
+
+22:11 memory.events: oom_kill 1
+
+22:11 AP process exited; Nginx returns 502
+
+</code></pre>
+<p>これは架空のLinux cgroup v2の例です。memory.maxは上限、memory.currentは現在の使用量、memory.eventsのoom_killはOOMによる強制終了の回数を示します。</p>
+<p>コンテナ上限に達すると、ホスト全体に空きRAMがあってもコンテナ内のプロセスがOOM終了する場合があります。Nginxの502はその結果として現れます。</p>
+<h2>16. ページフォールトとキャッシュミスは違う</h2>
+<p>第19講までにCPUキャッシュを学びました。名前が似ていても、次の三つは別の現象です。</p>
+<table><thead>
+<tr><th>現象</th><th>何が見つからないか</th><th>次に起こること</th></tr>
+</thead><tbody>
+<tr><td>CPUキャッシュミス</td><td>CPUキャッシュ内のデータ</td><td>下位キャッシュやRAM等を参照</td></tr>
+<tr><td>TLBミス</td><td>アドレス変換結果</td><td>ページテーブル等を参照</td></tr>
+<tr><td>ページフォールト</td><td>現在の変換・アクセス条件では処理を続けられないページ</td><td>OSの例外処理へ進む</td></tr>
+</tbody></table>
+<p>CPUキャッシュミスやTLBミスが起きても、ページフォールトが必ず発生するわけではありません。ページフォールトが起きても、ディスクI/Oが必ず発生するわけではありません。</p>
+<h2>17. 設計判断：どの対策を選ぶか</h2>
+<p>障害を見つけた後は、<strong>何を増やすかより、どこが足りないか</strong>を先に判断します。</p>
+<table><thead>
+<tr><th>対策</th><th>有効になりやすい条件</th><th>トレードオフ</th></tr>
+</thead><tbody>
+<tr><td>RAM増設</td><td>ワーキングセットがRAMに収まらない</td><td>コスト・停止作業</td></tr>
+<tr><td>アプリのメモリ削減</td><td>リークや過剰キャッシュがある</td><td>修正・検証が必要</td></tr>
+<tr><td>同時実行数制限</td><td>バッチ等の同時負荷で圧迫</td><td>完了時間が延びる</td></tr>
+<tr><td>コンテナ上限調整</td><td>上限が実需より小さい</td><td>ホスト全体の資源競合</td></tr>
+<tr><td>スワップ設定見直し</td><td>退避方針が負荷特性に合わない</td><td>OOMリスクやI/Oへの影響</td></tr>
+</tbody></table>
+<p><strong>ワーキングセット</strong>は、一定期間に実際によく使うメモリのまとまりです。これがRAMに収まらないと、ページの入れ替えが頻発しやすくなります。</p>
+<h2>18. Oracle・JP1・Citrixでの応用</h2>
+<p><strong>Oracle</strong>では、DBのメモリ領域とOSのページキャッシュ、プロセス使用量の関係を意識します。SGA（System Global Area）はDBが共有して使うメモリ領域です。Oracleの巨大ページ利用などは構成と製品版に依存するため、変更前に公式資料を確認します。</p>
+<p><strong>JP1/AJS</strong>では、バッチ同時実行で一時的にメモリ使用量が増えることがあります。開始・終了時刻とMemAvailable、swap-in/out、応答時間を並べて調べます。</p>
+<p><strong>Citrix</strong>では、ユーザーセッション数の増加によるメモリ消費が性能へ影響する場合があります。セッション数、ゲストOSのメモリ圧迫、ホストの資源割当を切り分けます。</p>
+<p>この節は一般的な運用原理の説明で、製品版別の仕様は未照合です。</p>
+<h2>19. MacのDockerラボで確かめる</h2>
+<p>自宅のNginx→FastAPI→PostgreSQL構成でも、<strong>コンテナ別の使用量と上限</strong>を観測できます。</p>
+<pre><code>
+docker compose ps
+
+docker stats --no-stream
+
+docker compose logs --tail=50
+
+</code></pre>
+<p>Docker DesktopのLinuxコンテナはLinux VM側で動きます。docker statsの表示はホストmacOSのメモリ表示と直接一致するとは限りません。</p>
+<p>この講義では安全のため、メモリを意図的に使い切る負荷試験やOOM誘発は行いません。</p>
+<h2>20. 障害対応の調査順序</h2>
+<p>これまでの内容を運用手順としてまとめます。</p>
+<ol>
+<li><strong>業務影響を確認</strong>：応答時間、502、ジョブ遅延、DB接続失敗を確認します。</li>
+<li><strong>メモリ圧迫の有無を確認</strong>：MemAvailable、プロセスRSS、コンテナ上限を調べます。</li>
+<li><strong>I/Oと例外を確認</strong>：vmstat si/so、メジャーフォールト、ストレージ待ち、OOMログを調べます。</li>
+<li><strong>時間をそろえる</strong>：JP1ジョブ、AP、DB、OSの変化を同じ時間軸で照合します。</li>
+<li><strong>仮説を比較</strong>：メモリリーク、過剰同時実行、コンテナ上限、ファイルI/Oを区別します。</li>
+<li><strong>対策と復旧判定</strong>：変更承認・切戻し条件を用意し、応答時間と業務処理結果を確認します。</li>
+</ol>
+<p><strong>「メモリ使用率が高い」というだけでスワップ無効化や再起動を選ばない</strong>ことが重要です。</p>
+<h2>21. まとめ・次講への橋渡し</h2>
+<p>今回の要点は五つです。</p>
+<ol>
+<li>仮想メモリはプロセスごとの独立したアドレス空間を実現します。</li>
+<li>ページングはメモリをページ単位で管理する仕組みです。</li>
+<li>ページフォールトは正常時にも起こり、メジャーとマイナーを区別します。</li>
+<li>ページキャッシュとスワップは目的が異なり、空きメモリだけで異常を判断しません。</li>
+<li>性能障害ではMemAvailable、swap-in/out、RSS、OOM、業務応答を時系列で確認します。</li>
+</ol>
+<p>次の第22講は「ファイルシステム・マウント・アクセス権」です。メモリ上のデータとディスク上のファイルがどのようにつながるかを学びます。</p></article><nav><a href="020.html">前講：第20講</a> ｜ <a href="../index.html">講義一覧</a> ｜ 次講：第22講（未公開）</nav></main></body></html>
