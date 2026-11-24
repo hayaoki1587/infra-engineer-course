@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 16,
+  "completed_count": 17,
   "lessons": [
     {
       "number": 1,
@@ -456,10 +456,32 @@
     },
     {
       "number": 17,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-24",
+          "answers": [
+            "B",
+            "A",
+            "D",
+            "C",
+            "A",
+            "B",
+            "C",
+            "D",
+            "A",
+            "B"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第17講理解度チェック：四択10問全問正解。CPU低使用率とDB I/O待ち、free/availableとページキャッシュ、単一スレッドCPU飽和、ランダムI/OのIOPS・レイテンシ、p95/p99、ロードとI/O待ち、スワップ圧迫、NVMe %utilの限界、時系列相関と因果、DBロック競合を適切に判断。全40選択肢の適用条件と不適切な理由を解説。四択で明確な弱点なし。実機ログ読解・手順立案の実技は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：CPU使用率20%、ロード8、ディスクawait40ms、API p95が3秒という監視データから、調査優先順位・原因仮説・対策と副作用を文章で説明"
+      ]
     },
     {
       "number": 18,
