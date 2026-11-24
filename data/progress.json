@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 18,
+  "completed_count": 19,
   "lessons": [
     {
       "number": 1,
@@ -514,10 +514,32 @@
     },
     {
       "number": 19,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-25",
+          "answers": [
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "A",
+            "D",
+            "C",
+            "B",
+            "D"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第19講理解度チェック：四択10問全問正解。OSとアプリの責任分界、root権限とCPUモード、APIとシステムコール、/procのState/VmRSS/Threads、NICドライバ、AP単独障害の初動、Permission deniedの最小権限、Docker DesktopのLinux VMカーネル共有、NICリセットと共通障害、OS起動後のDBサービス障害を適切に判断。全40選択肢の適用条件・不適切な理由を解説。選択式では明確な弱点なし。実機ログ読解・手順立案は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：Nginxが502、FastAPIサービス停止、PostgreSQL正常、直前にAP設定変更があったケースで、取得ログ・確認設定・原因仮説3つ・復旧方法・切戻し条件を記述する"
+      ]
     },
     {
       "number": 20,
