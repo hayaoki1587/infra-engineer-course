@@ -1,21 +1,69 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第19講｜OSの役割・カーネル・ユーザー空間</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.85}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="018.html">前講：第18講</a> ｜ 第19講 / 全224講 ｜ 次講：第20講（未公開）</nav><article><h1>第19講 OSの役割・カーネル・ユーザー空間</h1>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第19講｜OSの役割・カーネル・ユーザー空間</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.9}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}article p{margin:0 0 1.15em}article h2{margin:2em 0 .85em}article ol{padding-left:1.5em;margin:1em 0 1.3em}article li{margin:.45em 0}article figure{margin:1.5em 0}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="018.html">前講：第18講</a> ｜ 第19講 / 全224講 ｜ 次講：第20講（未公開）</nav><article><h1>第19講 OSの役割・カーネル・ユーザー空間</h1>
 <h2>1. 目的と資料</h2>
-<p>第3編OSの最初の講義。到達目標はOSとカーネルの区別、ユーザー空間とカーネル空間、システムコール、ドライバ、障害時の調査範囲、コンテナとVMの違いを説明できること。A必須：OS・カーネル・システムコール。B補助：権限・ログ・ドライバ。C発展：仮想化。参照：Linux man-pages syscall(2) https://man7.org/linux/man-pages/man2/syscall.2.html （呼び出し・返り値・errnoを原文確認）、proc_pid_status(5) https://man7.org/linux/man-pages/man5/proc_pid_status.5.html （State・Pid・VmRSS等を原文確認）、Linux Kernel Documentation Syscall User Dispatch https://www.kernel.org/doc/html/latest/admin-guide/syscall-user-dispatch.html （特殊機能の背景・注意を原文確認）。一般原理と架空例を区別し、製品固有仕様は未照合。</p>
+<p>この講義は、前編で学んだCPU・メモリ・SSD・NICが、アプリケーションからどのように使われるのかを理解するためのものです。まず全体像をつかみ、次に一つのファイル読み込みを追い、最後に障害対応へつなげます。</p>
+<p><strong>学ぶ順序</strong></p>
+<ol>
+<li>OSが必要な理由と全体構造を理解する。</li>
+<li>アプリからカーネルへの処理を追う。</li>
+<li>権限・ドライバ・ログから障害を切り分ける。</li>
+<li>VM・コンテナと実務製品に応用する。</li>
+</ol>
+<p><strong>到達目標</strong>：OSとカーネルの違い、ユーザー空間とカーネル空間、システムコール、障害の調査範囲を説明できること。</p>
+<p><strong>学習配分</strong>：A必須＝OS・カーネル・システムコール。B理解補助＝権限・ログ・ドライバ。C発展＝仮想化。</p>
+<p><strong>参照資料</strong>：Linux man-pages syscall(2) https://man7.org/linux/man-pages/man2/syscall.2.html 、proc_pid_status(5) https://man7.org/linux/man-pages/man5/proc_pid_status.5.html 、Linux Kernel Documentation https://www.kernel.org/doc/html/latest/admin-guide/syscall-user-dispatch.html 。システムコールの呼び出し・返り値・errno、/procの項目、特殊機能の背景を原文照合した資料として記録する。製品固有仕様は未照合。コマンドは未実行、ログは架空例。</p>
 <h2>2. OSはなぜ必要か</h2>
-<p>CPUは命令を実行、メモリは作業データを保持、SSDは永続保存、NICは通信する。だがアプリごとにCPU配分・メモリ保護・ファイル管理を独自実装すると、安全な同時利用が困難。OS（Operating System、基本ソフトウェア）はハードウェア資源を管理し、アプリへ共通の利用方法を提供する。例：Nginxが通信を受け、FastAPIが処理し、PostgreSQLが保存する。CPU実行順、メモリ隔離、ディスク・ネットワーク入出力はOSが調整する。一方、注文が有効かどうかの業務判断はアプリが担当する。</p>
+<p><strong>最初の疑問：なぜハードウェアだけではアプリを動かせないのでしょうか。</strong> 答えは、複数のアプリが同じ機器を使うための交通整理が必要だからです。</p>
+<p><strong>結論から言うと、OSは複数のアプリが同じハードウェアを安全に利用するための管理者です。</strong></p>
+<p>CPUは命令を実行します。メモリは作業中のデータを保持し、SSDはデータを保存し、NICはネットワークで通信します。</p>
+<p>しかし、これらの部品だけでは「どのアプリにCPUを使わせるか」「ほかのアプリのメモリを壊さないようにするか」を決める共通の仕組みがありません。</p>
+<p>そこで<strong>OS（Operating System：基本ソフトウェア）</strong>が、CPUの実行順、メモリの保護、ディスクやネットワークへの入出力を管理します。</p>
+<p><strong>具体例：3層Webシステム</strong></p>
+<p>Nginxがリクエストを受け、FastAPIが注文を処理し、PostgreSQLがデータを保存します。この3つが同時に動くための資源管理をOSが担当します。</p>
+<p>一方で「注文を受け付けるか」という業務判断はアプリの担当です。<strong>OSは資源を管理し、アプリは業務を処理する</strong>と分けて考えましょう。</p>
 <h2>3. OS・カーネル・ユーザー空間</h2>
-<p>カーネル（kernel）はOSの中核で、CPUスケジューリング、メモリ、ファイルI/O、プロセス、デバイスを管理する。OS全体にはカーネルに加え管理コマンド、ライブラリ、サービスなども含まれる。Linuxは文脈によりカーネルまたはLinuxを使うOS全体を指す。ユーザー空間はNginx、PostgreSQL、シェル等が動く領域。カーネル空間はカーネルが資源管理を行う領域。</p>
+<p>ここまではOSが必要な理由を説明しました。<strong>次は、OSの中で実際に資源を管理する中心部分</strong>を見ていきます。</p>
+<p><strong>OS全体とカーネルは同じものではありません。</strong></p>
+<p><strong>カーネル（kernel）</strong>はOSの中核です。CPUの実行順、メモリ、ファイルI/O、プロセス、デバイスを管理します。</p>
+<p>OS全体にはカーネルだけでなく、管理コマンド、ライブラリ、起動サービスなども含まれます。「Linux」はカーネルを指す場合と、Linuxを使うOS全体を指す場合があります。</p>
+<p><strong>ユーザー空間</strong>は、Nginx・FastAPI・PostgreSQL・シェルなど通常のアプリが動く領域です。</p>
+<p><strong>カーネル空間</strong>は、カーネルがOSの資源管理を行う領域です。</p>
+<p>ここで大切なのは、アプリがハードウェアを好き勝手に操作するのではなく、<strong>カーネルに依頼する境界がある</strong>ということです。</p>
 <figure><img src="../assets/lesson019/os-layers.svg" alt="OSの階層図"><figcaption>OSの階層図</figcaption></figure>
 <p>図は上からアプリ、システムコール境界、カーネル、CPU・RAM・SSD・NIC。矢印は機能の依頼と結果の往復を示す。アプリがハードウェアを無制限に直接操作する意味ではない。</p>
 <h2>4. ユーザーモードとカーネルモード</h2>
-<p>CPUには実行権限の違うモードがある。通常アプリはユーザーモードで動き、保護されたメモリや機器を勝手に操作できない。カーネルはカーネルモードで特権命令や資源管理を実行する。これはログインユーザーがrootかどうかと別の概念。rootとして起動した通常アプリも通常はユーザーモードで動き、必要時にシステムコールを使う。空間は主にメモリ・実行環境の境界、モードはCPU権限の境界を示す。</p>
+<p>前節ではアプリとカーネルの「領域」を分けました。ここでは、<strong>CPUがその処理を実行するときの「権限」</strong>に注目します。似た言葉ですが、異なる観点です。</p>
+<p><strong>ユーザー空間・カーネル空間は「どこで動くか」、ユーザーモード・カーネルモードは「どの権限で実行するか」です。</strong></p>
+<p>通常のアプリはCPUの<strong>ユーザーモード</strong>で動きます。保護されたメモリや機器を勝手に操作できません。</p>
+<p>カーネルは<strong>カーネルモード</strong>で、特権命令や資源管理を実行します。</p>
+<p>ここで混同しやすいのがrootです。rootはOS上の強い権限を持つユーザーですが、<strong>rootで起動した通常アプリも、基本的にはユーザーモードで動きます</strong>。</p>
+<p>つまり、root権限を持つことと、CPUがカーネルモードで命令を実行することは別の話です。</p>
 <h2>5. 正常処理：設定ファイルを読む</h2>
-<p>①FastAPIが設定ファイルを開きたいと要求。②Python等のライブラリが必要に応じopenatなどのシステムコールを使う。③CPUがカーネル側の処理へ移り、カーネルがファイルの存在・権限・キャッシュを確認。④必要ならファイルシステムとドライバを通じSSDにI/Oを要求。⑤結果またはエラーをアプリへ返す。⑥アプリが設定内容を解釈する。</p>
+<p>これまでの話は構造の説明でした。ここからは、<strong>FastAPIが設定ファイルを読む一回の処理</strong>を順番に追い、構造が実際にどう使われるかを確認します。</p>
+<p><strong>例：FastAPIが設定ファイルを読む場合</strong></p>
+<ol>
+<li>FastAPIが「設定ファイルを開きたい」と要求します。</li>
+<li>Pythonなどのライブラリが、必要に応じてopenatなどの<strong>システムコール</strong>を呼びます。</li>
+<li>CPUがカーネル側の処理へ移り、カーネルがファイルの存在・アクセス権・キャッシュを確認します。</li>
+<li>必要ならファイルシステムとドライバを介してSSDに読み込みを依頼します。</li>
+<li>カーネルが結果またはエラーをアプリに返します。</li>
+<li>FastAPIが読み取った設定を解釈します。</li>
+</ol>
+<p><strong>システムコール（system call）</strong>とは、アプリがカーネルの機能を利用するための正式な入口です。</p>
+<p>すべての関数呼び出しがシステムコールになるわけではありません。たとえば文字列の計算はアプリ内だけで完結できます。</p>
+<p>LinuxのCライブラリには、失敗時に-1を返し、errnoに理由を記録する関数があります。ただし戻り値はAPIごとに確認します。</p>
 <figure><img src="../assets/lesson019/syscall-flow.svg" alt="システムコールの処理順序"><figcaption>システムコールの処理順序</figcaption></figure>
 <p>図の左右はユーザー空間とカーネル空間。右向きは要求、左向きは結果。システムコールはカーネル機能への正式な入口であり、通常の関数呼び出しは必ずしもカーネルへ移らない。LinuxのCライブラリでは失敗時に-1とerrnoを使う関数があるが、戻り値は各APIの仕様で確認する。</p>
 <h2>6. API・ライブラリ・システムコール</h2>
-<p>API（Application Programming Interface）は機能を利用する約束の総称。ライブラリは便利な関数の集まりで、複数のシステムコールを使ったり、システムコールなしで処理したりする。システムコールはカーネルに依頼する境界。Pythonのopen()は言語APIで、Linuxのopenat()そのものではない。ブラウザが呼ぶHTTPの/api/ordersはWeb APIであり、システムコールと別階層。文字列の連結などはユーザー空間だけで完結できる。</p>
+<p>前節で登場したシステムコールを、普段聞く「API」と区別します。<strong>どの層の機能を呼び出すか</strong>を意識すると混乱しません。</p>
+<p><strong>APIは「機能を呼び出す約束」の総称です。</strong></p>
+<p>- <strong>ライブラリ</strong>：便利な関数をまとめた部品。内部でシステムコールを使う場合も、使わない場合もあります。</p>
+<p>- <strong>システムコール</strong>：カーネルの機能に入るための呼び出し。</p>
+<p>- <strong>Web API</strong>：アプリ同士がHTTPなどで機能を呼び出す約束。</p>
+<p>たとえばPythonのopen()は言語APIで、内部でLinuxのopenat()などを利用する場合があります。しかし両者は同一ではありません。</p>
+<p>また、ブラウザから呼ぶ /api/orders はWeb APIです。カーネルに直接依頼するシステムコールとは階層が違います。</p>
+<p><strong>区別のポイントは「誰が誰の機能を利用するか」です。</strong></p>
 <h2>7. OSが管理するもの</h2>
+<p>ファイル読み込みはOSの仕事の一例です。ここでは、OSがほかに何を管理するのかを一覧で整理します。</p>
 <table><thead>
 <tr><th>対象</th><th>OSの役割</th><th>障害の例</th></tr>
 </thead><tbody>
@@ -28,13 +76,36 @@
 </tbody></table>
 <p>仮想メモリはプロセスごとに独立したアドレス空間を見せる仕組みで、物理RAMそのものではない。ファイルシステムはファイル名と保存データを対応づける仕組み。ソケットはアプリが通信を利用するOSの窓口。OOMはメモリ不足によりプロセスが終了させられる事象。</p>
 <h2>8. デバイスドライバ</h2>
-<p>デバイスドライバは特定の機器をOSから操作できるようにするソフトウェア。カーネルからの読み書き要求をNICやSSDに合った操作へ橋渡しする。Linuxでは多くのドライバがカーネル内で動くが、すべてのOSで同じ構造とは限らない。NICドライバの異常でリンクが上がらないならアプリのHTTP設定を直しても復旧しない。一方NICが正常でAPが待受していないならアプリ・サービス設定を優先する。</p>
+<p>前節の「ストレージ」「ネットワーク」を機器につなぐ部品がドライバです。<strong>OSの共通機能と機器固有の操作の橋渡し</strong>という役割を見ます。</p>
+<p><strong>ドライバはOSと機器の通訳役です。</strong></p>
+<p>OSが「データを送信したい」と要求しても、NICごとに操作方法は異なります。<strong>デバイスドライバ</strong>がOSの共通要求を、その機器に合う操作へ橋渡しします。</p>
+<p>Linuxでは多くのドライバがカーネル内で動きますが、すべてのOSが同じ構造ではありません。</p>
+<p><strong>障害例</strong>：NICのドライバが異常で通信できない場合、WebアプリのHTTP設定を直しても解決しません。反対にNICが正常でFastAPIが待受していなければ、アプリの起動状態やポート設定を確認します。</p>
+<p>つまり、<strong>通信できないという症状だけで、アプリが悪いともNICが悪いとも決められません。</strong></p>
 <h2>9. 権限と保護</h2>
-<p>ユーザー空間とカーネル空間の分離はアプリがOS全体を壊しにくくする基本構造。ただしユーザー空間だから必ず安全というわけではなく、アプリ脆弱性やカーネル脆弱性はあり得る。ファイルのPermission deniedはOSがアクセスを拒否したことを示す。所有者、パーミッション、ACL（追加のアクセス制御規則）、SELinux等の影響を確認する。調査せずchmod 777で全員に権限を与えるのは避け、必要最小限の権限にする。root権限とカーネルモードを混同しない。</p>
+<p>ここまでは機器を使う仕組みでした。次は、<strong>アプリに何を許可し、何を禁止するか</strong>という保護の仕組みです。</p>
+<p><strong>分離の目的は、アプリがOSやほかのアプリへ無制限に干渉できないようにすることです。</strong></p>
+<p>たとえばファイルを開くとき、OSは実行ユーザーとファイルの権限を確認します。アクセスできなければ Permission denied などのエラーになります。</p>
+<p>調査では、ファイルの所有者、パーミッション、ACL（追加のアクセス制御規則）、SELinuxなどを確認します。</p>
+<p>原因を調べず chmod 777 で全員にアクセスを許可すると、情報漏えいや不正な書き換えの危険が増えます。必要な権限だけを与えるのが基本です。</p>
+<p>なお、ユーザー空間とカーネル空間が分かれていても、アプリやカーネルの脆弱性がなくなるわけではありません。</p>
 <h2>10. 起動処理とのつながり</h2>
-<p>第15講からの連続性：①UEFIが起動対象を選ぶ。②ブートローダがLinuxカーネル等を読み込む。③カーネルがCPU・メモリ・デバイスを初期化し、ルートファイルシステムを利用可能にする。④PID1（多くのLinuxではsystemd）がサービスを起動。⑤NginxやDBが起動し業務開始。UEFIがSSDを認識しない問題と、OS起動後にPostgreSQLサービスが失敗する問題は調査層が異なる。systemctlは通常systemd稼働後に使うため、UEFI段階の故障は調べられない。</p>
+<p>OSが動き始める前には何があるのでしょうか。第15講で学んだ起動処理を、カーネルとサービスの役割につなぎ直します。</p>
+<p><strong>OSが使えるようになるまでにも順序があります。</strong></p>
+<ol>
+<li>UEFIが起動対象を選びます。</li>
+<li>ブートローダがLinuxカーネルなどを読み込みます。</li>
+<li>カーネルがCPU・メモリ・デバイスを初期化し、ファイルシステムを使えるようにします。</li>
+<li>PID 1（多くのLinuxではsystemd）がサービスを起動します。</li>
+<li>NginxやPostgreSQLが起動し、業務を提供します。</li>
+</ol>
+<p>ここから分かるのは、<strong>OSが起動する前の故障と、OS起動後のサービス故障では調査方法が違う</strong>ということです。</p>
+<p>UEFIがSSDを認識しないなら起動設定や機器側を調べます。一方Linuxにログインでき、PostgreSQLだけ起動しないなら、systemdのサービス状態やDBログを調べます。</p>
 <h2>11. 障害例A：APだけ停止</h2>
-<p>架空事例：FastAPIプロセスが停止し、Nginxが502を返す。DBは正常。まずAPのサービス状態、待受ポート、アプリ例外ログ、OOM終了を調べる。</p>
+<p>ここからは障害切り分けです。まず、<strong>OS全体は動いているが一つのアプリだけが停止した場合</strong>を考えます。</p>
+<p><strong>観測事実</strong>：FastAPIのプロセスが停止し、Nginxが502を返しています。DBは正常です。</p>
+<p><strong>まず確認すること</strong>：FastAPIのサービス状態、待受ポート、アプリの例外ログ、メモリ不足によるOOM終了の有無です。</p>
+<p>以下は説明用の架空ログです。</p>
 <pre><code>
 nginx: upstream connect() failed (111: Connection refused)
 
@@ -43,7 +114,9 @@ fastapi.service: Main process exited, status=1/FAILURE
 </code></pre>
 <p>1行目は上流接続先が接続拒否したこと、2行目はサービス主プロセスが失敗終了したことを示す架空ログ。これだけではアプリコード、ポート設定、メモリ不足のどれが原因かは確定できない。カーネル全体の障害とも限らない。</p>
 <h2>12. 障害例B：ドライバ側異常</h2>
-<p>架空事例：サーバ全体の通信が切れ、NICのリセットが繰り返し記録される。</p>
+<p>前節と対比して、今度は<strong>複数のアプリに共通する通信機能</strong>で異常が起きた場合を見ます。</p>
+<p><strong>観測事実</strong>：一つのアプリだけではなく、サーバ全体の通信が切れました。カーネルログにはNICのリセットが繰り返し記録されています。</p>
+<p>以下は説明用の架空ログです。</p>
 <pre><code>
 kernel: eth0: transmit queue timed out
 
@@ -52,7 +125,8 @@ kernel: eth0: resetting adapter
 </code></pre>
 <p>送信キューのタイムアウトとアダプタのリセットを示す架空ログ。物理リンク、スイッチ、NIC統計、ドライバ・ファームウェア版、OSログを同時刻で確認する。resetだけでNICの物理故障とは断定しない。カーネルパニックはカーネルが回復困難な異常で停止する状態で、サーバ全体に影響し得る。</p>
 <h2>13. Linuxコマンドの読み方</h2>
-<p>Linuxかつsystemd採用環境を想定した読み取り例。未実行。</p>
+<p>障害の例を見たところで、<strong>実際にどこを調べるか</strong>をLinuxの読み取りコマンドで確認します。</p>
+<p><strong>以下はLinuxかつsystemdを使う環境を想定した読み取り専用の例です。実行はしていません。</strong></p>
 <pre><code>
 uname -r
 
@@ -71,48 +145,160 @@ ls -l /etc/passwd
 </code></pre>
 <p>uname -rは稼働カーネルのリリース、/etc/os-releaseはOS配布版、psはプロセス一覧、/proc/1/statusはPID1の状態、systemctlはサービス状態、journalctl -kはカーネルログ、ls -lはファイル権限を確認する。/procはカーネルが情報を見せる仮想ファイルシステム。systemd非採用環境ではsystemctlは使えない。コンテナ内のPID1はホストのPID1と異なることがある。</p>
 <h2>14. /proc/PID/statusの読解</h2>
+<p>前節のコマンドに出てきた /proc/1/status を、別のプロセスを例にもう少し詳しく読みます。</p>
+<p><strong>ここでは各項目が何を表し、何をまだ断定できないかを確認します。</strong></p>
+<p>以下は架空の出力です。</p>
+<p>Name:   postgres</p>
+<p>State:  S (sleeping)</p>
+<p>Pid:    3142</p>
+<p>PPid:   1</p>
+<p>VmRSS:  204800 kB</p>
+<p>Threads: 5</p>
 <pre><code>
-Name:   postgres
 
-State:  S (sleeping)
 
-Pid:    3142
+架空出力。Nameは名前、Stateは状態、Pidはプロセス識別番号、PPidは親の番号、VmRSSは物理メモリ上に存在する領域の概算、Threadsはスレッド数。StateのSは待機中で、即異常ではない。D（割り込み不可の待機）が長く続く場合はI/O待ちなどを調べる。RSSは共有メモリの扱いに注意し、複数プロセスを単純合計して物理RAM使用量と同一視しない。
 
-PPid:   1
 
-VmRSS:  204800 kB
 
-Threads: 5
+## 15. 障害の責任境界と設計
+
+
+
+ここまでの知識を、障害の第一調査先を選ぶ判断へまとめます。**症状が出ている層と根本原因の層は同じとは限りません。**
+
+
+
+| 症状 | 優先して確認 | 補助確認 |
+
+|---|---|---|
+
+| APIだけ502 | APプロセス・待受 | Nginx・通信経路 |
+
+| Permission denied | OS権限・ACL・SELinux | 実行ユーザー |
+
+| 全通信が停止 | NIC・ドライバ・スイッチ | ルーティング |
+
+| カーネルパニック | カーネル・ドライバ・機器 | 更新履歴 |
+
+| DBが遅くCPUは低い | DB待機・I/O・メモリ | SQL・バックアップ |
+
+
+
+最初の調査先は症状で決めるが原因は複数層にまたがる。ログの時刻をそろえ、変更履歴を確認し、変更前に影響範囲・切戻し条件を決める。
+
+
+
+## 16. VMとコンテナ
+
+
+
+ここからは応用です。これまでの「カーネルを共有するか」という観点を、VMとコンテナの比較に使います。
+
+
+
+**VM（仮想マシン）**は仮想ハードウェア上で、VMごとにゲストOSのカーネルを起動します。
+
+
+
+**コンテナ**は通常、ホストのLinuxカーネルを共有します。そのうえで、名前空間（見えるプロセスやネットワークを分ける仕組み）やcgroups（CPU・メモリ使用量を管理する仕組み）を使って環境を分離します。
+
+
+
+**重要な違いは、アプリの環境を分けることと、カーネルを別々に持つことは同じではない**という点です。
+
+
+
+。
+
+
+
+![VMとコンテナのカーネル比較](../assets/lesson019/vm-container.svg)
+
+
+
+図の左はVMごとにゲストカーネルがある。右はコンテナ間でLinuxカーネルを共有。MacのDocker DesktopはLinux VMを介してコンテナを動かすため、LinuxコンテナがmacOSカーネルを直接共有するわけではない。
+
+
+
+## 17. Oracle・JP1・Citrixへの対応
+
+
+
+ここまでの汎用OSの話が、実務製品の運用でどこに関係するのかを確認します。
+
+
+
+**Oracle DB**はOSのプロセスとして動くため、CPU配分・メモリ・ファイルI/Oの影響を受けます。DBが遅い場合はSQL待機とOSのI/O待ちを照合します。
+
+
+
+**JP1/AJS**のジョブはOSのプロセス起動・終了・実行ユーザー・環境変数の影響を受けます。ジョブ失敗時にはOS側の権限も調査対象です。
+
+
+
+**Citrix**などの仮想デスクトップ基盤では、ゲストOS、ホストのハイパーバイザー、仮想デバイスの責任範囲を分けて調べます。
+
+
+
+以上は一般的な運用上の関係であり、各製品の版別仕様は未照合です。
+
+
+
+## 18. 自宅3層ラボへの応用
+
+
+
+最後に、自宅のNginx・FastAPI・PostgreSQLの3層ラボへ置き換えます。**コンテナが別でも、OSのどこが共通なのか**が確認ポイントです。
+
+
+
+**MacのDocker Desktopでは、Linuxコンテナは通常Linux VMのカーネルを共有します。**
+
+
+
+Nginx、FastAPI、PostgreSQLを別コンテナにしても、各コンテナが独立したカーネルを持つわけではありません。
+
+
+
+コンテナの状態、ログ、資源使用量は次のコマンドで確認できます（未実行）。
+
+
 
 </code></pre>
-<p>架空出力。Nameは名前、Stateは状態、Pidはプロセス識別番号、PPidは親の番号、VmRSSは物理メモリ上に存在する領域の概算、Threadsはスレッド数。StateのSは待機中で、即異常ではない。D（割り込み不可の待機）が長く続く場合はI/O待ちなどを調べる。RSSは共有メモリの扱いに注意し、複数プロセスを単純合計して物理RAM使用量と同一視しない。</p>
-<h2>15. 障害の責任境界と設計</h2>
-<table><thead>
-<tr><th>症状</th><th>優先して確認</th><th>補助確認</th></tr>
-</thead><tbody>
-<tr><td>APIだけ502</td><td>APプロセス・待受</td><td>Nginx・通信経路</td></tr>
-<tr><td>Permission denied</td><td>OS権限・ACL・SELinux</td><td>実行ユーザー</td></tr>
-<tr><td>全通信が停止</td><td>NIC・ドライバ・スイッチ</td><td>ルーティング</td></tr>
-<tr><td>カーネルパニック</td><td>カーネル・ドライバ・機器</td><td>更新履歴</td></tr>
-<tr><td>DBが遅くCPUは低い</td><td>DB待機・I/O・メモリ</td><td>SQL・バックアップ</td></tr>
-</tbody></table>
-<p>最初の調査先は症状で決めるが原因は複数層にまたがる。ログの時刻をそろえ、変更履歴を確認し、変更前に影響範囲・切戻し条件を決める。</p>
-<h2>16. VMとコンテナ</h2>
-<p>VM（仮想マシン）は仮想ハードウェア上でゲストOSのカーネルを起動する。コンテナは通常、ホスト側Linuxカーネルを共有し、名前空間（見えるプロセスやネットワークの範囲を分ける仕組み）やcgroups（CPU・メモリ等の使用量を管理・制限する仕組み）で分離する。</p>
-<figure><img src="../assets/lesson019/vm-container.svg" alt="VMとコンテナのカーネル比較"><figcaption>VMとコンテナのカーネル比較</figcaption></figure>
-<p>図の左はVMごとにゲストカーネルがある。右はコンテナ間でLinuxカーネルを共有。MacのDocker DesktopはLinux VMを介してコンテナを動かすため、LinuxコンテナがmacOSカーネルを直接共有するわけではない。</p>
-<h2>17. Oracle・JP1・Citrixへの対応</h2>
-<p>Oracle DBのプロセスはOSのCPU配分・メモリ・I/Oの影響を受ける。SQL待機とOSのI/O待ちを突き合わせる。JP1/AJSのジョブ実行はOSのプロセス起動・終了・実行ユーザー・環境変数に依存する。Citrixなどの仮想デスクトップ基盤ではゲストOS・ホストハイパーバイザー・仮想デバイスの責任範囲を分ける。これらは一般的な運用観点であり製品の版別仕様は未照合。</p>
-<h2>18. 自宅3層ラボへの応用</h2>
-<p>MacのDockerでNginx→FastAPI→PostgreSQLを分離しても、同じDocker DesktopのLinux VMカーネルを共有する。コンテナ別にプロセスが見えても独立したゲストカーネルを持つわけではない。安全な読み取り例（未実行）：</p>
+<p>docker compose ps</p>
+<p>docker compose logs --tail=30</p>
+<p>docker stats --no-stream</p>
 <pre><code>
-docker compose ps
 
-docker compose logs --tail=30
 
-docker stats --no-stream
+psはコンテナ状態、logsはサービスログ、statsは資源使用量の目安。データを消すdocker compose down -vのような操作は演習に含めない。
 
-</code></pre>
-<p>psはコンテナ状態、logsはサービスログ、statsは資源使用量の目安。データを消すdocker compose down -vのような操作は演習に含めない。</p>
-<h2>19. 要点と次講</h2>
-<p>OSはハードウェア資源を管理し、アプリへ共通で安全な利用方法を提供する。カーネルはOSの中核。通常アプリはユーザー空間で動き、システムコールでカーネル機能を依頼する。rootユーザーとカーネルモードは別。障害はアプリ・OS設定・ドライバ・ハードウェアのどこで止まるか切り分ける。コンテナは通常カーネル共有、VMはゲストカーネルを持つ。次講は第20講「プロセス・スレッド・コンテキストスイッチ」。四択10問15点、回答前に正解は示さない。</p></article><nav><a href="018.html">前講：第18講</a> ｜ <a href="../index.html">講義一覧</a> ｜ 次講：第20講（未公開）</nav></main></body></html>
+
+
+## 19. 要点と次講
+
+
+
+ここまでの流れを「OSの役割→境界→処理→障害→設計」の順で振り返ります。
+
+
+
+**今回の結論は五つです。**
+
+
+
+1. OSはCPU・メモリ・I/Oなどを管理し、アプリが共通の方法で利用できるようにします。
+
+2. カーネルはOSの中核で、通常のアプリはユーザー空間で動きます。
+
+3. アプリはシステムコールでカーネル機能を利用します。root権限とカーネルモードは別です。
+
+4. 障害はアプリ、OS設定、ドライバ、ハードウェアのどの層にあるかを、症状とログから切り分けます。
+
+5. VMはゲストカーネルを持ち、コンテナは通常Linuxカーネルを共有します。
+
+
+
+次講は第20講「プロセス・スレッド・コンテキストスイッチ」。理解度チェックは四択10問・15点で、回答前に正解を示しません。
+</article><nav><a href="018.html">前講：第18講</a> ｜ <a href="../index.html">講義一覧</a> ｜ 次講：第20講（未公開）</nav></main></body></html>
