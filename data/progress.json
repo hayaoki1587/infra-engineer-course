@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 15,
+  "completed_count": 16,
   "lessons": [
     {
       "number": 1,
@@ -427,10 +427,32 @@
     },
     {
       "number": 16,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-24",
+          "answers": [
+            "C",
+            "B",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "A"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第16講理解度チェック：四択10問全問正解。PSU・PDU・UPSの共通障害点、RAIDとバックアップ、RAID5縮退、NIC冗長化、ECCエラー傾向、ログの事実と原因推定、RTOと自動切替、JP1/AJSの安全な再実行を適切に判断。全40選択肢の適用条件と不適切な理由を解説。四択で明確な弱点なし。実機ログ読解・復旧作業の実技は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：RAID5の1台故障と電源片系故障が同時発生した本番DBサーバの業務継続・停止判断、バックアップ確認、交換優先順位、復旧検証"
+      ]
     },
     {
       "number": 17,
