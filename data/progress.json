@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 21,
+  "completed_count": 22,
   "lessons": [
     {
       "number": 1,
@@ -601,10 +601,32 @@
     },
     {
       "number": 22,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-26",
+          "answers": [
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第22講理解度チェック：四択10問全問正解。ディスク・ファイルシステム・マウント、inode、ディレクトリ探索権限、rwx数値表記、fstab/UUID、マウント失敗、所有者とACL、inode枯渇、最小権限、Oracle・JP1・APの起動依存を理解。全40選択肢の適用条件と不適切な理由を解説。四択で明確な弱点なし。実機調査手順の記述演習は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：再起動後に/dataがマウントされずOracleとJP1の処理が失敗したケースで、findmnt・lsblk -f・fstab・起動ログ・権限を調べる順序、復旧・切戻し・再起動検証を記述する"
+      ]
     },
     {
       "number": 23,
