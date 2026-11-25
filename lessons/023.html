@@ -1,0 +1,160 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第23講｜OSの起動・停止とサービス管理</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.9}article p{margin:0 0 1.15em}article h2{margin:2em 0 .85em}article ol,article ul{padding-left:1.5em;margin:1em 0 1.3em}article li{margin:.45em 0}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="022.html">前講：第22講</a> ｜ 第23講 / 全224講 ｜ 次講：第24講（未公開）</nav><article><h1>第23講 OSの起動・停止とサービス管理</h1>
+<p><strong>第3編：OS｜全224講中第23講</strong></p>
+<p><strong>資料・照合状況</strong>：Linux、systemd、journalctl、Docker Composeの一般的な仕組みに基づきます。公式マニュアルの版・該当ページ、Oracle/JP1/Citrixの製品版別仕様は今回外部照合していません。コマンドは未実行、ログ・構成は架空例です。</p>
+<h2>1. 到達目標と前講とのつながり</h2>
+<p>第22講ではファイルシステムを/dataへマウントし、アクセス権を確認しました。今回は再起動するとマウントとアプリがどの順序で準備されるかを学びます。到達目標は①起動段階②systemdのunit③サービス状態とログ④安全な停止⑤障害対応です。A必須：起動経路、systemd、サービス操作。B補助：依存関係とマウント。C発展：コンテナ、製品連携。</p>
+<h2>2. なぜ起動順序が必要なのか</h2>
+<p>Web→AP→DBの構成で、Webだけが先に起動してもDBが利用できなければ業務は失敗します。DBのデータが/dataにあるなら、DB起動前にマウントも必要です。サービス管理とは、プログラムの起動・停止だけでなく依存・順序・失敗時の動作を扱う仕組みです。Linuxではsystemdが広く利用されます。</p>
+<h2>3. 電源投入から起動まで</h2>
+<ol>
+<li>UEFIなどのファームウェアが機器を初期化し起動先を選びます。</li>
+<li>GRUBなどのブートローダーがLinuxカーネルを読み込みます。</li>
+<li>カーネルがメモリ・CPU・デバイスを初期化します。</li>
+<li>必要に応じinitramfsという初期用の一時環境から本来のルートファイルシステムへ移ります。</li>
+<li>最初のユーザー空間の管理プロセス（一般的なsystemd環境ではPID 1）がサービスを管理します。</li>
+</ol>
+<figure><img src="../assets/lesson023/boot-sequence.svg" alt="Linuxの起動段階"><figcaption>Linuxの起動段階</figcaption></figure>
+<p>図の矢印は起動処理の引き継ぎです。ブートローダーで停止した場合とsystemdのサービスが失敗した場合では、調べる対象が違います。</p>
+<h2>4. カーネルとsystemdの違い</h2>
+<p>カーネルはCPU・メモリ・デバイス・ファイルシステムの基本機能を提供します。systemdはその上で動くプログラムの起動・停止・依存関係を管理します。ネットワーク機器がカーネルに認識されても、Nginxが起動しポートで待ち受けるとは限りません。OSの起動成功と業務利用可能は別です。</p>
+<h2>5. unitの種類</h2>
+<p>systemdの管理対象をunit（ユニット）と呼びます。</p>
+<table><thead>
+<tr><th>種類</th><th>管理対象</th><th>例</th></tr>
+</thead><tbody>
+<tr><td>service</td><td>常駐プログラム</td><td>nginx.service</td></tr>
+<tr><td>mount</td><td>マウント</td><td>data.mount</td></tr>
+<tr><td>target</td><td>複数unitの目標</td><td>multi-user.target</td></tr>
+<tr><td>timer</td><td>時刻・周期での起動</td><td>logrotate.timer</td></tr>
+</tbody></table>
+<p>multi-user.targetは一般的な複数ユーザー向け稼働状態を表す目標です。</p>
+<h2>6. 正常起動の処理順序</h2>
+<p>架空の3層構成を考えます。</p>
+<ol>
+<li>OSがストレージを認識し/dataをマウントします。</li>
+<li>DBが起動し、データを読み込み接続受付を開始します。</li>
+<li>APがDB接続を確認し、業務要求を処理可能になります。</li>
+<li>Webが要求を受け付けAPへ転送します。</li>
+<li>監視が業務APIの正常応答を確認します。</li>
+</ol>
+<figure><img src="../assets/lesson023/dependency.svg" alt="サービス依存の概念図"><figcaption>サービス依存の概念図</figcaption></figure>
+<p>矢印は業務上の依存を示します。プロセスが起動したこととDBやAPIが利用可能であることは同じではありません。</p>
+<h2>7. After・Requires・Wants</h2>
+<p>systemdのAfter=は起動順序を指定しますが、対象unitの起動要求そのものではありません。Requires=は必要な依存unitの起動を要求しますが、単独で順序を保証しません。Wants=はより弱い依存です。RequiresMountsFor=は指定パスに必要なマウントunitを要求し順序付けします。</p>
+<table><thead>
+<tr><th>設定</th><th>意味</th><th>注意</th></tr>
+</thead><tbody>
+<tr><td>After=</td><td>後から起動処理</td><td>起動要求は別</td></tr>
+<tr><td>Requires=</td><td>必須依存を要求</td><td>順序は別</td></tr>
+<tr><td>Wants=</td><td>弱い依存を要求</td><td>依存先失敗と必ずしも連動しない</td></tr>
+<tr><td>RequiresMountsFor=</td><td>パスに必要なmountを要求</td><td>対象パスを確認</td></tr>
+</tbody></table>
+<p>AfterでDBより後にAPを起動しても、DBが接続受付を始めたことまでは保証しません。</p>
+<h2>8. 状態を調べるsystemctl</h2>
+<p>読み取りコマンド例です。今回は未実行です。</p>
+<pre><code>
+systemctl status nginx.service
+
+systemctl is-active nginx.service
+
+systemctl is-enabled nginx.service
+
+systemctl list-dependencies nginx.service
+
+systemctl cat nginx.service
+
+</code></pre>
+<p>statusは現在の状態と直近ログ、is-activeは現在動作中か、is-enabledは起動時の有効化状態を確認します。activeとenabledは別です。list-dependenciesは依存を調べる手掛かりですが、実際の準備完了までは証明しません。</p>
+<h2>9. start・stop・restart・enable</h2>
+<p>次は構文例で、実行していません。本番での操作は停止影響と承認を確認してください。</p>
+<pre><code>
+sudo systemctl start nginx.service
+
+sudo systemctl stop nginx.service
+
+sudo systemctl restart nginx.service
+
+sudo systemctl enable nginx.service
+
+sudo systemctl disable nginx.service
+
+</code></pre>
+<p>startは起動、stopは停止、restartは再起動です。enableは通常、次回起動時にunitを起動対象にする設定であり、今すぐ起動することとは別です。disableも現在動いているサービスを直ちに停止する操作ではありません。</p>
+<h2>10. journalctlでログを確認</h2>
+<p>ログは、どの起動回でどのunitがいつ失敗したかを調べるために使います。</p>
+<pre><code>
+journalctl -u nginx.service -b --no-pager
+
+journalctl -b -p warning --no-pager
+
+journalctl --list-boots
+
+systemctl --failed
+
+</code></pre>
+<p>-uはunit指定、-bは現在の起動回、-p warningは警告以上の重要度のログです。過去の起動履歴は永続ログ設定がなければ残らない場合があります。ログに表示されたエラーは結果であり、根本原因とは限りません。</p>
+<h2>11. failedの原因を分類する</h2>
+<p>failedは、プロセスが起動できなかった場合と、起動後に異常終了した場合の両方で起こり得ます。設定文法エラー、実行パス間違い、ポート競合、権限不足、マウント失敗、依存先の未準備などが原因候補です。systemctl statusのExecStartや終了コード、journalctlとアプリログを照合します。status=1/FAILUREだけではアプリがなぜ終了コード1を返したかは断定できません。</p>
+<h2>12. 障害A：fstabのUUID不一致</h2>
+<p>SSD交換後の再起動でDB・AP・Webに障害が広がった架空例です。</p>
+<pre><code>
+07:00 data.mount: Mount process exited, status=32
+
+07:01 database.service: Failed to start; /data unavailable
+
+07:02 api.service: database connection failed
+
+07:03 nginx: upstream returned 502
+
+</code></pre>
+<p>観測事実は/dataのマウント失敗、DB起動失敗、AP接続失敗、502です。仮説はUUIDの不一致やデバイス認識不良です。lsblk -fでUUID、findmntでマウント、fstabで設定、journalctl -bで失敗時刻を照合します。データがあるディスクを安易にフォーマットしてはいけません。</p>
+<h2>13. 障害B：DBがactiveでも接続不可</h2>
+<p>架空ログです。</p>
+<pre><code>
+08:10 database.service: Started
+
+08:10 api.service: connection refused at 127.0.0.1:5432
+
+08:11 database: ready to accept connections
+
+</code></pre>
+<p>観測事実はDBのsystemd上の起動と、実際の接続受付開始に時間差があることです。After=で順序を指定しても業務準備完了を保証しません。DBの準備完了通知、APの接続リトライ（一定間隔で再試行）、ヘルスチェックなどを検討します。再試行間隔やタイムアウトも設計対象です。</p>
+<h2>14. 障害C：enabledなのにinactive</h2>
+<p>再起動後にis-enabledがenabledでもis-activeがinactiveになる場合があります。enabledは起動時の有効化、activeは現在の稼働状態です。依存失敗、起動条件、unitの起動対象への組込み、ログ、正常終了する短時間の処理かどうかを確認します。daemon-reloadはunit定義を読み直す操作で、通常はアプリの再起動ではありません。</p>
+<h2>15. 安全な停止・再起動</h2>
+<p>計画停止では、新規リクエストを抑止し、処理中の仕事を完了させ、APを停止し、DBを整合的に停止する順序を検討します。起動時はストレージ、DB、AP、Webの順に実際の利用可能性を確認します。事前に影響通知、JP1ジョブ抑止、バックアップ、データ整合性、切戻し条件を確認します。systemctl stopの成功だけで業務処理の完了は保証されません。OS全体のrebootは業務影響を伴うため変更管理が必要です。</p>
+<h2>16. 自動再起動と監視設計</h2>
+<p>Restart=on-failureは異常終了後の再起動を試みますが、設定ミスやDB停止の根本原因は解決しません。起動を短時間に繰り返すと開始回数制限に達することがあります。</p>
+<table><thead>
+<tr><th>設計</th><th>利点</th><th>注意</th></tr>
+</thead><tbody>
+<tr><td>Restart=on-failure</td><td>異常終了からの復帰</td><td>永続的な設定不備は残る</td></tr>
+<tr><td>起動レート制限</td><td>再起動ループ抑制</td><td>復旧後の状態確認が必要</td></tr>
+<tr><td>ヘルスチェック</td><td>業務機能の利用可否確認</td><td>activeとは別に判定</td></tr>
+<tr><td>依存関係設定</td><td>起動順序を管理</td><td>外部DBの準備完了は別</td></tr>
+</tbody></table>
+<p>監視では、プロセス稼働、ポート接続、業務API応答を区別します。</p>
+<h2>17. Oracle・JP1・Citrixへの応用</h2>
+<p>OracleではOS、ストレージ、リスナー、DB起動、SQL接続確認を別段階として扱います。Oracle Restartなどの構成では製品側のリソース管理を優先し、systemdだけで勝手に起動順序を変えません。JP1/AJSでは管理サービスだけでなくジョブ実行先、保存先、再実行時の重複処理を確認します。Citrixではサービス稼働とユーザーのログオン成功は別であり、認証・プロファイル保存先・ネットワーク依存を確認します。製品版別の手順は今回未照合です。</p>
+<h2>18. Docker Composeとの違い</h2>
+<p>MacのDocker Desktop上のNginx→FastAPI→PostgreSQLでは、ホストOSのsystemdとコンテナの起動管理を区別します。Composeのdepends_onはコンテナ間の依存を扱いますが、単純な起動順序だけではDBの準備完了を保証しません。ヘルスチェックとservice_healthy条件などを検討します。</p>
+<pre><code>
+docker compose ps
+
+docker compose logs --tail=50 api
+
+docker compose logs --tail=50 db
+
+</code></pre>
+<p>コマンドは未実行の読み取り例です。Dockerの再起動ポリシーとsystemdのRestart=は別の仕組みです。</p>
+<h2>19. 障害対応の実務フロー</h2>
+<ol>
+<li>業務影響、発生時刻、直前の変更を確認します。</li>
+<li>systemctl --failed、status、journalctl -bで失敗unitを探します。</li>
+<li>ストレージ・マウント・ネットワーク・権限・ポート・依存先を確認します。</li>
+<li>アプリログとOSログの時刻を照合して仮説を絞ります。</li>
+<li>切戻しを準備して最小限の対策を実施します。</li>
+<li>activeだけでなく業務API、DB接続、ジョブ結果を確認します。</li>
+</ol>
+<h2>20. まとめと次講</h2>
+<p>起動はファームウェア→ブートローダー→カーネル→初期ユーザー空間→サービス管理へ進みます。systemdはserviceやmountなどのunitを管理します。Afterは順序、Requiresは依存要求であり、activeとenabledは別です。プロセス起動と業務利用可能も別です。停止・復旧ではデータ整合性と切戻しを確認します。次の第24講は「Linuxのディレクトリ構造と基本コマンド」です。</p></article><nav><a href="022.html">前講：第22講</a> ｜ <a href="../index.html">講義一覧</a> ｜ 次講：第24講（未公開）</nav></main></body></html>
