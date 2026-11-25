@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 20,
+  "completed_count": 21,
   "lessons": [
     {
       "number": 1,
@@ -572,10 +572,32 @@
     },
     {
       "number": 21,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-25",
+          "answers": [
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A",
+            "D",
+            "B",
+            "C",
+            "A"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第21講理解度チェック：四択10問全問正解。仮想アドレスと物理メモリ、MMU・ページテーブル、マイナーページフォールト、ページキャッシュ、RSS共有ページ、MemFreeとMemAvailable、JP1バッチ後のスワップI/O、コンテナOOM、メモリ圧迫の切り分け、Oracle・JP1・APの資源競合を理解。全40選択肢の適用条件と不適切な理由を解説。四択で明確な弱点なし。実機ログ読解・障害手順立案は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：JP1バッチ開始後にMemAvailable=120MiB、swap-in増加、AP応答3秒超となったケースで、プロセス別メモリ使用量・スワップI/O・コンテナ上限を調べるコマンド、判断基準、対策、切戻し条件を記述する"
+      ]
     },
     {
       "number": 22,
