@@ -1,72 +1,69 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第23講｜OSの起動・停止とサービス管理</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.9}article p{margin:0 0 1.15em}article h2{margin:2em 0 .85em}article ol,article ul{padding-left:1.5em;margin:1em 0 1.3em}article li{margin:.45em 0}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="022.html">前講：第22講</a> ｜ 第23講 / 全224講 ｜ 次講：第24講（未公開）</nav><article><h1>第23講 OSの起動・停止とサービス管理</h1>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>第23講｜OSの起動・停止とサービス管理</title><link rel="stylesheet" href="../style.css"><style>main{max-width:900px;margin:auto;padding:24px;line-height:1.9}article p{margin:0 0 1.15em}article h2{margin:2em 0 .85em}article ol,article ul{padding-left:1.5em;margin:1em 0 1.3em}article li{margin:.45em 0}pre{overflow:auto;padding:16px;background:#f3f4f6}p{overflow-wrap:anywhere}img{max-width:100%;height:auto}table{width:100%;border-collapse:collapse;display:block;overflow-x:auto}td,th{border:1px solid #aab4c0;padding:8px;text-align:left}figure{margin:20px 0}figcaption{font-size:.85rem;color:#526071}</style></head><body><header><nav><a href="../index.html">講義一覧</a> ｜ <a href="../progress.html">進捗</a></nav></header><main><nav><a href="022.html">前講：第22講</a> ｜ 第23講 / 全224講 ｜ 次講：第24講（未公開）</nav><article><h1>第23講 OSの起動・停止とサービス管理（初学者向け改訂版）</h1>
 <p><strong>第3編：OS｜全224講中第23講</strong></p>
-<p><strong>資料・照合状況</strong>：Linux、systemd、journalctl、Docker Composeの一般的な仕組みに基づきます。公式マニュアルの版・該当ページ、Oracle/JP1/Citrixの製品版別仕様は今回外部照合していません。コマンドは未実行、ログ・構成は架空例です。</p>
-<h2>1. 到達目標と前講とのつながり</h2>
-<p>第22講ではファイルシステムを/dataへマウントし、アクセス権を確認しました。今回は再起動するとマウントとアプリがどの順序で準備されるかを学びます。到達目標は①起動段階②systemdのunit③サービス状態とログ④安全な停止⑤障害対応です。A必須：起動経路、systemd、サービス操作。B補助：依存関係とマウント。C発展：コンテナ、製品連携。</p>
-<h2>2. なぜ起動順序が必要なのか</h2>
-<p>Web→AP→DBの構成で、Webだけが先に起動してもDBが利用できなければ業務は失敗します。DBのデータが/dataにあるなら、DB起動前にマウントも必要です。サービス管理とは、プログラムの起動・停止だけでなく依存・順序・失敗時の動作を扱う仕組みです。Linuxではsystemdが広く利用されます。</p>
-<h2>3. 電源投入から起動まで</h2>
+<p><strong>資料・照合状況</strong>：systemd公式マニュアル systemd.unit（https://www.freedesktop.org/software/systemd/man/latest/systemd.unit.html）でAfter/Requires/Wants/RequiresMountsForの説明を照合。OS・製品の版別仕様は未照合。コマンドは未実行、ログは架空例です。</p>
+<h2>1. この講義で知りたいこと：電源を入れたら何が起こる？</h2>
+<p>第22講では、ディスクを/dataという場所につなぐ「マウント」を学びました。ところで、サーバを再起動したら、誰が/dataをマウントし、誰がデータベースを起動するのでしょうか。</p>
+<p>この講義では、<strong>電源を入れる→Linuxが動く→WebやDBが起動する→利用者が使える</strong>という流れを一つずつ追います。途中で「カーネル」「systemd」「プロセス」などの言葉が出ますが、順番に意味を説明します。</p>
+<h2>2. 最初に「プログラム」と「プロセス」を区別する</h2>
+<p>Nginxの実行ファイルがディスクに保存されているだけでは、Webページは表示できません。<strong>プログラムは実行する命令の集まり、プロセスはそのプログラムを実際に動かしている状態</strong>です。</p>
+<p>料理に例えるなら、レシピがプログラム、レシピに従って料理している作業がプロセスです。コンピュータでは、CPUが命令を実行し、カーネルがプロセスを管理します。</p>
+<p>まずは「ファイルとして存在すること」と「実際に動いていること」は違う、と覚えてください。</p>
+<h2>3. カーネルは「プログラムを動かす土台」</h2>
+<p>Linuxのカーネルは、CPUの使用時間をプロセスに割り当て、メモリやディスク、ネットワークを管理します。例えばNginxがWebページのファイルを読み込むとき、カーネルが提供するファイル読み込み機能を使います。</p>
+<p>ただし、カーネルは「会社のWebサーバを毎朝起動する」といった業務上の起動管理までは担当しません。<strong>プログラムが動けるようにすることと、どのプログラムを起動するか決めることは別の仕事</strong>だからです。</p>
+<h2>4. systemdは「サービスの起動を管理するプロセス」</h2>
+<p>サーバではNginxやDBなど、いくつものプログラムを起動する必要があります。これらをいつ起動・停止するか管理する代表的なプログラムがsystemdです。</p>
+<p><strong>systemd自身も、カーネルの上で動くプロセスです。</strong> 一般的なsystemd採用Linuxでは、起動後にPID 1という番号で動きます。PIDとはプロセスを識別する番号です。</p>
+<p>管理者がNginxの起動を指示すると、systemdが設定を確認して起動処理を進めます。カーネルはNginxのプロセスの実行を支え、Nginx自身がHTTP要求を処理します。</p>
+<p><strong>カーネル＝動かす土台、systemd＝サービスを起動・停止する管理役、Nginx＝Webの仕事をするアプリ</strong>です。systemdもNginxもカーネルの機能を使って動きます。</p>
+<h2>5. 電源投入からsystemdが動くまで</h2>
+<p>では、そのsystemdはどうやって動き始めるのでしょうか。一般的なLinuxの起動は次の順です。</p>
 <ol>
-<li>UEFIなどのファームウェアが機器を初期化し起動先を選びます。</li>
-<li>GRUBなどのブートローダーがLinuxカーネルを読み込みます。</li>
-<li>カーネルがメモリ・CPU・デバイスを初期化します。</li>
-<li>必要に応じinitramfsという初期用の一時環境から本来のルートファイルシステムへ移ります。</li>
-<li>最初のユーザー空間の管理プロセス（一般的なsystemd環境ではPID 1）がサービスを管理します。</li>
+<li>電源投入後、UEFIなどのファームウェア（機器を起動するためのプログラム）が起動先を選びます。</li>
+<li>GRUBなどのブートローダー（OSを読み込むプログラム）がLinuxカーネルを読み込みます。</li>
+<li>カーネルがCPU、メモリ、ディスクなどを使う準備をします。</li>
+<li>必要ならinitramfs（起動時だけ使う一時的な環境）でディスクを認識し、本来のルートファイルシステムへ切り替えます。</li>
+<li>systemdが起動し、ログインやネットワークなどのサービスを管理します。</li>
 </ol>
 <figure><img src="../assets/lesson023/boot-sequence.svg" alt="Linuxの起動段階"><figcaption>Linuxの起動段階</figcaption></figure>
-<p>図の矢印は起動処理の引き継ぎです。ブートローダーで停止した場合とsystemdのサービスが失敗した場合では、調べる対象が違います。</p>
-<h2>4. カーネルとsystemdの違い</h2>
-<p>カーネルはCPU・メモリ・デバイス・ファイルシステムの基本機能を提供します。systemdはその上で動くプログラムの起動・停止・依存関係を管理します。ネットワーク機器がカーネルに認識されても、Nginxが起動しポートで待ち受けるとは限りません。OSの起動成功と業務利用可能は別です。</p>
-<h2>5. unitの種類</h2>
-<p>systemdの管理対象をunit（ユニット）と呼びます。</p>
+<p>図の矢印は「次の段階へ処理を引き継ぐ」という意味です。ブートローダーで止まった場合、まだNginxの起動処理には到達していません。どの段階で止まったかを確認するのが障害調査の出発点です。</p>
+<h2>6. systemdが管理する「unit」とは</h2>
+<p>systemdは管理対象をunit（ユニット）と呼びます。<strong>unitは「何をどのように管理するかをまとめた設定単位」</strong>です。</p>
 <table><thead>
-<tr><th>種類</th><th>管理対象</th><th>例</th></tr>
+<tr><th>種類</th><th>何を管理する？</th><th>例</th></tr>
 </thead><tbody>
-<tr><td>service</td><td>常駐プログラム</td><td>nginx.service</td></tr>
-<tr><td>mount</td><td>マウント</td><td>data.mount</td></tr>
-<tr><td>target</td><td>複数unitの目標</td><td>multi-user.target</td></tr>
-<tr><td>timer</td><td>時刻・周期での起動</td><td>logrotate.timer</td></tr>
+<tr><td>service</td><td>Nginxなどのプログラム</td><td>nginx.service</td></tr>
+<tr><td>mount</td><td>ディスクのマウント</td><td>data.mount</td></tr>
+<tr><td>target</td><td>複数のunitをまとめた起動目標</td><td>multi-user.target</td></tr>
+<tr><td>timer</td><td>時刻や周期に応じた処理</td><td>logrotate.timer</td></tr>
 </tbody></table>
-<p>multi-user.targetは一般的な複数ユーザー向け稼働状態を表す目標です。</p>
-<h2>6. 正常起動の処理順序</h2>
-<p>架空の3層構成を考えます。</p>
+<p>例えば、前講で学んだ/dataのマウントもsystemdの管理対象にできます。つまり、<strong>必要なディスクを準備してからDBを動かす</strong>という流れを扱えるわけです。</p>
+<h2>7. Web→AP→DBはどの順番で使えるようになる？</h2>
+<p>架空の3層システムを考えます。DBは/dataにデータを保存しています。</p>
 <ol>
-<li>OSがストレージを認識し/dataをマウントします。</li>
-<li>DBが起動し、データを読み込み接続受付を開始します。</li>
-<li>APがDB接続を確認し、業務要求を処理可能になります。</li>
-<li>Webが要求を受け付けAPへ転送します。</li>
-<li>監視が業務APIの正常応答を確認します。</li>
+<li>/dataをマウントします。ここが失敗するとDBはデータを読めません。</li>
+<li>DBを起動します。ただし起動直後は接続を受け付けられない場合があります。</li>
+<li>AP（業務アプリ）がDBに接続し、業務処理を始めます。</li>
+<li>Webが利用者からの要求を受け付け、APへ渡します。</li>
+<li>ヘルスチェック（実際に利用できるかの確認）で、業務APIの応答を確かめます。</li>
 </ol>
 <figure><img src="../assets/lesson023/dependency.svg" alt="サービス依存の概念図"><figcaption>サービス依存の概念図</figcaption></figure>
-<p>矢印は業務上の依存を示します。プロセスが起動したこととDBやAPIが利用可能であることは同じではありません。</p>
-<h2>7. After・Requires・Wants</h2>
-<p>systemdのAfter=は起動順序を指定しますが、対象unitの起動要求そのものではありません。Requires=は必要な依存unitの起動を要求しますが、単独で順序を保証しません。Wants=はより弱い依存です。RequiresMountsFor=は指定パスに必要なマウントunitを要求し順序付けします。</p>
-<table><thead>
-<tr><th>設定</th><th>意味</th><th>注意</th></tr>
-</thead><tbody>
-<tr><td>After=</td><td>後から起動処理</td><td>起動要求は別</td></tr>
-<tr><td>Requires=</td><td>必須依存を要求</td><td>順序は別</td></tr>
-<tr><td>Wants=</td><td>弱い依存を要求</td><td>依存先失敗と必ずしも連動しない</td></tr>
-<tr><td>RequiresMountsFor=</td><td>パスに必要なmountを要求</td><td>対象パスを確認</td></tr>
-</tbody></table>
-<p>AfterでDBより後にAPを起動しても、DBが接続受付を始めたことまでは保証しません。</p>
-<h2>8. 状態を調べるsystemctl</h2>
-<p>読み取りコマンド例です。今回は未実行です。</p>
+<p>図の矢印は「前のものが使えないと後ろが困る」という業務上の関係です。<strong>起動したことと、実際に使えることは違います。</strong></p>
+<h2>8. まずは「今動いている？」を調べる</h2>
+<p>Nginxが動かないと聞いたら、最初に現在の状態を確認します。以下は未実行の例です。</p>
 <pre><code>
 systemctl status nginx.service
 
-systemctl is-active nginx.service
-
+</code></pre>
+<p>出力の中に「Active: active (running)」があれば、systemdは実行中と認識しています。「Active: failed」なら起動失敗や異常終了などが疑われます。ただし、activeでもWebページが正常に表示できるとは限りません。</p>
+<p>次に、自動起動の設定を調べるには以下を使います。</p>
+<pre><code>
 systemctl is-enabled nginx.service
 
-systemctl list-dependencies nginx.service
-
-systemctl cat nginx.service
-
 </code></pre>
-<p>statusは現在の状態と直近ログ、is-activeは現在動作中か、is-enabledは起動時の有効化状態を確認します。activeとenabledは別です。list-dependenciesは依存を調べる手掛かりですが、実際の準備完了までは証明しません。</p>
-<h2>9. start・stop・restart・enable</h2>
-<p>次は構文例で、実行していません。本番での操作は停止影響と承認を確認してください。</p>
+<p><strong>activeは「今動いている？」、enabledは「OS起動時に起動対象となる設定？」</strong>という別の質問です。enabledでも起動失敗することはあります。</p>
+<h2>9. サービスを起動・停止する指示</h2>
+<p>状態を確認し、影響と承認を確認した後に操作します。以下は未実行の構文例です。</p>
 <pre><code>
 sudo systemctl start nginx.service
 
@@ -79,22 +76,27 @@ sudo systemctl enable nginx.service
 sudo systemctl disable nginx.service
 
 </code></pre>
-<p>startは起動、stopは停止、restartは再起動です。enableは通常、次回起動時にunitを起動対象にする設定であり、今すぐ起動することとは別です。disableも現在動いているサービスを直ちに停止する操作ではありません。</p>
-<h2>10. journalctlでログを確認</h2>
-<p>ログは、どの起動回でどのunitがいつ失敗したかを調べるために使います。</p>
+<p>startは今起動、stopは今停止、restartは今再起動です。enableは通常、次回のOS起動時に起動対象となるよう設定し、disableはその設定を解除します。<strong>enableは今すぐ起動することではなく、disableは今すぐ停止することでもありません。</strong></p>
+<p>本番でrestartすると、接続中の利用者へ影響する場合があります。コマンドを知っていることと、安全に実行できることは別です。</p>
+<h2>10. ログは「何が起きたかの記録」</h2>
+<p>サービスがfailedなら、次は理由を探します。ログとは、プログラムやOSが記録した出来事です。未実行の確認例を示します。</p>
 <pre><code>
 journalctl -u nginx.service -b --no-pager
 
-journalctl -b -p warning --no-pager
-
-journalctl --list-boots
-
-systemctl --failed
-
 </code></pre>
-<p>-uはunit指定、-bは現在の起動回、-p warningは警告以上の重要度のログです。過去の起動履歴は永続ログ設定がなければ残らない場合があります。ログに表示されたエラーは結果であり、根本原因とは限りません。</p>
-<h2>11. failedの原因を分類する</h2>
-<p>failedは、プロセスが起動できなかった場合と、起動後に異常終了した場合の両方で起こり得ます。設定文法エラー、実行パス間違い、ポート競合、権限不足、マウント失敗、依存先の未準備などが原因候補です。systemctl statusのExecStartや終了コード、journalctlとアプリログを照合します。status=1/FAILUREだけではアプリがなぜ終了コード1を返したかは断定できません。</p>
+<p>「-u nginx.service」はNginxの記録に絞る指定、「-b」は今回のOS起動後の記録を見る指定です。失敗した時刻と、その直前の出来事を確認します。</p>
+<p>ログに「connection refused」とあれば接続を拒否された事実は分かります。しかし、接続先が停止中だったのか、まだ準備中だったのかまでは、その一行だけでは決まりません。<strong>ログは原因を考える材料であり、原因そのものとは限りません。</strong></p>
+<h2>11. AfterとRequiresは何が違う？</h2>
+<p>APはDBが使えないと仕事ができません。このような「Aを使うためにBが必要」という関係を依存関係と呼びます。</p>
+<table><thead>
+<tr><th>設定</th><th>意味</th><th>注意</th></tr>
+</thead><tbody>
+<tr><td>After=</td><td>指定したunitの起動処理より後に進む</td><td>指定先を起動する指示ではない</td></tr>
+<tr><td>Requires=</td><td>指定先も必要なので起動を要求する</td><td>単独では起動順序を決めない</td></tr>
+<tr><td>Wants=</td><td>指定先にも起動を要求する弱い依存</td><td>指定先の失敗と必ずしも連動しない</td></tr>
+<tr><td>RequiresMountsFor=</td><td>指定した場所に必要なマウントを要求し順序付ける</td><td>/dataなど対象パスを確認</td></tr>
+</tbody></table>
+<p>例えばAfter=database.serviceを指定しても、DBがSQL接続を受け付けられるまで待つとは限りません。<strong>起動の順序と、業務上の準備完了は別に確認する</strong>必要があります。</p>
 <h2>12. 障害A：fstabのUUID不一致</h2>
 <p>SSD交換後の再起動でDB・AP・Webに障害が広がった架空例です。</p>
 <pre><code>
