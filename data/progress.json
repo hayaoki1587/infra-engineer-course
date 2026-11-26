@@ -2,7 +2,7 @@
   "schema_version": 1,
   "curriculum_version": "1.0",
   "total_lessons": 224,
-  "completed_count": 22,
+  "completed_count": 23,
   "lessons": [
     {
       "number": 1,
@@ -630,10 +630,33 @@
     },
     {
       "number": 23,
-      "status": "not_started",
-      "attempts": [],
+      "status": "completed",
+      "attempts": [
+        {
+          "date": "2026-11-26",
+          "answers": [
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D",
+            "A",
+            "C",
+            "B",
+            "D"
+          ],
+          "score": 15,
+          "max_score": 15,
+          "correct_count": 10,
+          "notes": "第23講・初学者向け改訂版：四択10問全問正解。プログラムとプロセス、カーネルとsystemd、unit、active/enabled、After/Requires、/dataマウント障害、DB readiness、JP1計画停止、業務ヘルスチェックを理解。全40選択肢の理由を解説。四択上の弱点なし。実機調査・構築判断は未評価。"
+        }
+      ],
       "weaknesses": [],
-      "review_topics": []
+      "review_topics": [
+        "発展演習：/dataマウント失敗→DB起動不可→AP接続失敗→Web 502のログから、初動調査、復旧順序、業務確認、切戻しを記述する",
+        "発展演習：systemdのAfter/RequiresとDBの準備完了確認を使い分けた起動設計を説明する"
+      ]
     },
     {
       "number": 24,
